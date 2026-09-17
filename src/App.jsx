@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { askJarvis } from './services/ai'
 import VoiceOrb from './components/VoiceOrb'
+import { clearMemory, loadMemory, saveMemory } from './services/memory'
 
 const rings = [
   { size: 520, speed: 34, reverse: false },
@@ -15,7 +16,8 @@ function App() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState(() => loadMemory())
+  const [showMemory, setShowMemory] = useState(false)
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -23,6 +25,10 @@ function App() {
     const timer = setInterval(update, 1000)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    saveMemory(messages)
+  }, [messages])
 
   const activate = () => {
     setOpen(true)
@@ -69,6 +75,15 @@ function App() {
     void sendMessage(transcript)
   }, [sendMessage])
 
+  const handleClearMemory = () => {
+    if (!window.confirm('Clear all JARVIS conversation memory on this browser?')) return
+    clearMemory()
+    setMessages([])
+    setShowMemory(false)
+    setStatus('MEMORY CLEARED')
+    setTimeout(() => setStatus('READY'), 1800)
+  }
+
   return (
     <main className="jarvis-shell">
       <div className="hex-field" aria-hidden="true" />
@@ -95,22 +110,32 @@ function App() {
       <div className="bottom-hint"><span className="pulse-dot" />Tap the core to open JARVIS</div>
 
       {open && (
-        <section className="chat-panel" aria-label="JARVIS chat">
+        <section className="chat-panel" aria-label="JARVIS command console">
           <header>
             <div><strong>J.A.R.V.I.S</strong><small>{status}</small></div>
-            <button className="close-chat" onClick={() => setOpen(false)} aria-label="Close chat">×</button>
+            <div className="header-actions">
+              <button className="memory-button" onClick={() => setShowMemory((value) => !value)} type="button">MEMORY <span>{messages.length}</span></button>
+              <button className="close-chat" onClick={() => setOpen(false)} aria-label="Close chat" type="button">×</button>
+            </div>
           </header>
+
+          {showMemory && (
+            <div className="memory-strip">
+              <div><strong>LOCAL MEMORY</strong><span>{messages.length} messages stored on this browser</span></div>
+              <button type="button" onClick={handleClearMemory}>CLEAR</button>
+            </div>
+          )}
+
           <div className="messages" aria-live="polite">
-            {messages.length === 0 && <div className="welcome">JARVIS AI core ready. Ask me anything.</div>}
+            {messages.length === 0 && <div className="welcome">JARVIS AI core ready.<br />Conversation memory is enabled locally.</div>}
             {messages.map((item, index) => (
               <div key={`${item.role}-${index}`} className={`message ${item.role}`}><span>{item.content}</span></div>
             ))}
             {busy && <div className="message assistant"><span>Thinking…</span></div>}
           </div>
-          <div className="voice-controls">
-            <VoiceOrb onTranscript={handleVoiceTranscript} />
-            <span>{status === 'VOICE INPUT' ? 'Listening / processing…' : 'Tap the orb to speak'}</span>
-          </div>
+
+          <div className="voice-controls"><VoiceOrb onTranscript={handleVoiceTranscript} /><span>{status === 'VOICE INPUT' ? 'Listening / processing…' : 'VOICE'}</span></div>
+
           <form className="chat-form" onSubmit={sendMessage}>
             <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Type a command…" aria-label="Message JARVIS" disabled={busy} />
             <button type="submit" disabled={busy || !input.trim()}>SEND</button>
