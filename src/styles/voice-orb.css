@@ -1,0 +1,72 @@
+.voice-orb {
+  position: relative;
+  width: min(62vw, 360px);
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  isolation: isolate;
+  filter: drop-shadow(0 0 18px rgba(34, 211, 238, .22));
+}
+
+.voice-orb::before {
+  content: '';
+  position: absolute;
+  inset: 13%;
+  border: 1px solid rgba(103, 232, 249, .32);
+  border-radius: 50%;
+  box-shadow: inset 0 0 34px rgba(34, 211, 238, .08), 0 0 34px rgba(34, 211, 238, .12);
+  animation: orb-spin 18s linear infinite;
+}
+
+.voice-orb::after {
+  content: '';
+  position: absolute;
+  inset: 21%;
+  border: 1px dashed rgba(34, 211, 238, .4);
+  border-radius: 50%;
+  animation: orb-spin-reverse 11s linear infinite;
+}
+
+.orb-core {
+  position: absolute;
+  inset: 35%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #dffcff 0 4%, #67e8f9 15%, rgba(34,211,238,.5) 40%, rgba(34,211,238,0) 72%);
+  box-shadow: 0 0 28px rgba(34,211,238,.8), 0 0 80px rgba(34,211,238,.25);
+  animation: core-breathe 3s ease-in-out infinite;
+}
+
+.orb-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 211, 238, .16);
+}
+
+.orb-ring-one { transform: rotateX(68deg) rotateZ(10deg); animation: orb-spin 8s linear infinite; }
+.orb-ring-two { inset: 7%; transform: rotateY(68deg); animation: orb-spin-reverse 13s linear infinite; }
+.orb-ring-three { inset: 18%; transform: rotateX(65deg); animation: orb-spin 16s linear infinite; }
+
+.orb-pulse {
+  position: absolute;
+  inset: 31%;
+  border-radius: 50%;
+  border: 1px solid rgba(103,232,249,.45);
+  animation: pulse 2.2s ease-out infinite;
+}
+
+.voice-orb.is-listening { filter: drop-shadow(0 0 34px rgba(34, 211, 238, .55)); }
+.voice-orb.is-listening .orb-core { animation-duration: .8s; }
+.voice-orb.is-listening .orb-ring-one { animation-duration: 3s; }
+.voice-orb.is-listening .orb-ring-two { animation-duration: 4s; }
+
+@keyframes orb-spin { to { transform: rotate(360deg); } }
+@keyframes orb-spin-reverse { to { transform: rotate(-360deg); } }
+@keyframes core-breathe { 0%,100% { transform: scale(.82); opacity: .72; } 50% { transform: scale(1.12); opacity: 1; } }
+@keyframes pulse { 0% { transform: scale(.72); opacity: .8; } 100% { transform: scale(1.35); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-orb *, .voice-orb::before, .voice-orb::after { animation: none !important; }
+}
