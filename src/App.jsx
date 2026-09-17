@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { askJarvis } from './services/ai'
+import VoiceOrb from './components/VoiceOrb'
 
 const rings = [
   { size: 520, speed: 34, reverse: false },
@@ -28,9 +29,10 @@ function App() {
     setStatus('READY')
   }
 
-  const sendMessage = async (event) => {
-    event?.preventDefault()
-    const message = input.trim()
+  const sendMessage = useCallback(async (eventOrMessage) => {
+    if (typeof eventOrMessage !== 'string') eventOrMessage?.preventDefault()
+
+    const message = typeof eventOrMessage === 'string' ? eventOrMessage.trim() : input.trim()
     if (!message || busy) return
 
     const history = messages.map(({ role, content }) => ({ role, content }))
@@ -43,13 +45,29 @@ function App() {
       const reply = await askJarvis(message, history)
       setMessages((current) => [...current, { role: 'assistant', content: reply }])
       setStatus('READY')
+
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+        const utterance = new SpeechSynthesisUtterance(reply)
+        utterance.lang = 'en-IN'
+        utterance.rate = 1
+        utterance.pitch = 0.95
+        window.speechSynthesis.speak(utterance)
+      }
     } catch (error) {
       setMessages((current) => [...current, { role: 'assistant', content: error.message }])
       setStatus('AI OFFLINE')
     } finally {
       setBusy(false)
     }
-  }
+  }, [busy, input, messages])
+
+  const handleVoiceTranscript = useCallback((transcript) => {
+    setOpen(true)
+    setStatus('VOICE INPUT')
+    setInput(transcript)
+    void sendMessage(transcript)
+  }, [sendMessage])
 
   return (
     <main className="jarvis-shell">
@@ -88,6 +106,10 @@ function App() {
               <div key={`${item.role}-${index}`} className={`message ${item.role}`}><span>{item.content}</span></div>
             ))}
             {busy && <div className="message assistant"><span>Thinking…</span></div>}
+          </div>
+          <div className="voice-controls">
+            <VoiceOrb onTranscript={handleVoiceTranscript} />
+            <span>{status === 'VOICE INPUT' ? 'Listening / processing…' : 'Tap the orb to speak'}</span>
           </div>
           <form className="chat-form" onSubmit={sendMessage}>
             <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Type a command…" aria-label="Message JARVIS" disabled={busy} />
