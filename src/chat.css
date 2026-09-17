@@ -5,9 +5,9 @@
   transform: translateX(-50%);
   z-index: 20;
   width: min(620px, calc(100vw - 32px));
-  height: min(390px, calc(100vh - 150px));
+  height: min(430px, calc(100vh - 150px));
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
+  grid-template-rows: auto auto 1fr auto auto;
   border: 1px solid rgba(91, 246, 255, .34);
   border-radius: 22px;
   background: linear-gradient(145deg, rgba(4, 19, 23, .94), rgba(1, 8, 11, .97));
@@ -16,51 +16,27 @@
   overflow: hidden;
   animation: console-in .38s cubic-bezier(.2,.8,.2,1) both;
 }
-
-.chat-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(70,255,255,.035), transparent);
-  animation: console-scan 4s linear infinite;
-}
-
-.chat-panel header {
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 19px 13px;
-  border-bottom: 1px solid rgba(90,245,255,.12);
-}
+.chat-panel::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent, rgba(70,255,255,.035), transparent); animation: console-scan 4s linear infinite; }
+.chat-panel header { position: relative; display: flex; justify-content: space-between; align-items: center; padding: 15px 19px 13px; border-bottom: 1px solid rgba(90,245,255,.12); }
 .chat-panel header strong { display: block; font-size: 12px; letter-spacing: .28em; text-shadow: 0 0 12px rgba(80,255,255,.6); }
 .chat-panel header small { display: block; margin-top: 4px; color: rgba(190,255,255,.4); font-size: 7px; letter-spacing: .2em; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.memory-button, .memory-strip button { border: 1px solid rgba(100,255,255,.16); border-radius: 999px; background: rgba(0,255,255,.025); color: rgba(190,255,255,.65); font-size: 7px; letter-spacing: .15em; cursor: pointer; }
+.memory-button { padding: 7px 10px; }
+.memory-button span { margin-left: 4px; color: #7efaff; }
 .close-chat { width: 30px; height: 30px; border: 1px solid rgba(100,255,255,.12); border-radius: 50%; background: rgba(0,255,255,.025); color: rgba(210,255,255,.62); font-size: 19px; line-height: 1; cursor: pointer; transition: .2s ease; }
 .close-chat:hover { color: #dfffff; border-color: rgba(100,255,255,.4); background: rgba(0,255,255,.08); }
-
+.memory-strip { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 16px; border-bottom: 1px solid rgba(90,245,255,.1); background: rgba(0,255,255,.025); }
+.memory-strip strong { display: block; color: rgba(210,255,255,.72); font-size: 7px; letter-spacing: .18em; }
+.memory-strip span { display: block; margin-top: 3px; color: rgba(190,255,255,.35); font-size: 7px; }
+.memory-strip button { padding: 6px 9px; }
 .messages { position: relative; min-height: 0; overflow-y: auto; padding: 16px 19px; display: flex; flex-direction: column; gap: 9px; scrollbar-width: thin; scrollbar-color: rgba(65,240,255,.25) transparent; }
 .welcome { margin: auto; max-width: 390px; text-align: center; color: rgba(190,255,255,.46); font-size: 11px; letter-spacing: .08em; line-height: 1.7; }
 .message { max-width: 78%; padding: 9px 12px; border: 1px solid rgba(80,247,255,.12); border-radius: 13px; color: #d8ffff; font-size: 11px; line-height: 1.5; white-space: pre-wrap; }
 .message.user { align-self: flex-end; background: rgba(0,210,220,.08); border-color: rgba(80,247,255,.24); }
 .message.assistant { align-self: flex-start; background: rgba(255,255,255,.025); }
-
-.voice-controls {
-  position: relative;
-  min-height: 66px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 6px 16px;
-  border-top: 1px solid rgba(90,245,255,.09);
-  color: rgba(190,255,255,.38);
-  font-size: 8px;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-}
-.voice-controls .voice-orb { flex: 0 0 58px; width: 58px; height: 58px; }
-
+.voice-controls { position: relative; min-height: 66px; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 16px; border-top: 1px solid rgba(90,245,255,.09); color: rgba(190,255,255,.38); font-size: 8px; letter-spacing: .18em; text-transform: uppercase; }
+.voice-controls .voice-orb { flex: 0 0 52px; width: 52px; height: 52px; }
 .chat-form { position: relative; display: flex; gap: 8px; padding: 11px 12px 12px; border-top: 1px solid rgba(90,245,255,.12); }
 .chat-form input { min-width: 0; flex: 1; padding: 12px 14px; border: 1px solid rgba(80,247,255,.2); border-radius: 11px; outline: none; background: rgba(0,0,0,.34); color: #dfffff; font-size: 12px; transition: .2s ease; }
 .chat-form input:focus { border-color: rgba(80,247,255,.5); box-shadow: 0 0 18px rgba(0,255,255,.07); }
@@ -68,18 +44,13 @@
 .chat-form button { min-width: 68px; padding: 0 14px; border: 1px solid rgba(80,247,255,.35); border-radius: 11px; background: rgba(0,255,255,.08); color: #bfffff; font-size: 8px; letter-spacing: .15em; cursor: pointer; transition: .2s ease; }
 .chat-form button:hover:not(:disabled) { background: rgba(0,255,255,.16); box-shadow: 0 0 18px rgba(0,255,255,.12); }
 .chat-form button:disabled { opacity: .3; cursor: not-allowed; }
-
 @keyframes console-in { from { opacity: 0; transform: translate(-50%, 18px) scale(.97); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
 @keyframes console-scan { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
-
 @media (max-width: 600px) {
-  .chat-panel { left: 12px; right: 12px; bottom: 58px; transform: none; width: auto; height: min(390px, calc(100vh - 100px)); border-radius: 18px; }
-  .voice-controls { min-height: 60px; }
-  .voice-controls .voice-orb { flex-basis: 52px; width: 52px; height: 52px; }
+  .chat-panel { left: 12px; right: 12px; bottom: 58px; transform: none; width: auto; height: min(430px, calc(100vh - 100px)); border-radius: 18px; }
+  .voice-controls { min-height: 58px; }
+  .voice-controls .voice-orb { flex-basis: 48px; width: 48px; height: 48px; }
   .message { max-width: 88%; }
+  .memory-strip span { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .chat-panel, .chat-panel::before { animation: none; }
-  .chat-panel * { scroll-behavior: auto; }
-}
+@media (prefers-reduced-motion: reduce) { .chat-panel, .chat-panel::before { animation: none; } .chat-panel * { scroll-behavior: auto; } }
