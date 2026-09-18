@@ -14,8 +14,7 @@ const rings = [
 function App() {
   const [status, setStatus] = useState('SYSTEM ONLINE')
   const [time, setTime] = useState('')
-  const [open, setOpen] = useState(false)
-  const [input, setInput] = useState('')
+    const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [messages, setMessages] = useState(() => loadMemory())
   const [showMemory, setShowMemory] = useState(false)
@@ -49,11 +48,6 @@ function App() {
       clearInterval(timer)
     }
   }, [])
-
-  const activate = () => {
-    setOpen(true)
-    setStatus(pcOnline ? 'PC LINK READY' : 'READY')
-  }
 
   const speak = (text) => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -110,7 +104,6 @@ function App() {
   }, [busy, input, messages, pcOnline])
 
   const handleVoiceTranscript = useCallback((transcript) => {
-    setOpen(true)
     setStatus('VOICE INPUT')
     setInput(transcript)
     void sendMessage(transcript)
@@ -142,7 +135,7 @@ function App() {
             <span className="dash dash-a" /><span className="dash dash-b" /><span className="dash dash-c" />
           </div>
         ))}
-        <button className="core" onClick={activate} aria-label="Open JARVIS">
+        <button className="core" aria-label="JARVIS">
           <span className="core-halo" /><span className="core-name">J.A.R.V.I.S</span><span className="core-line" />
         </button>
         <div className="orbit orbit-one" /><div className="orbit orbit-two" />
@@ -150,13 +143,11 @@ function App() {
 
       <div className="bottom-hint"><span className="pulse-dot" />Tap the core to open JARVIS</div>
 
-      {open && (
-        <section className="chat-panel" aria-label="JARVIS command console">
+      <section className="chat-panel" aria-label="JARVIS command console">
           <header>
             <div><strong>J.A.R.V.I.S</strong><small>{status}</small></div>
             <div className="header-actions">
               <button className="memory-button" onClick={() => setShowMemory((value) => !value)} type="button">MEMORY <span>{messages.length}</span></button>
-              <button className="close-chat" onClick={() => setOpen(false)} aria-label="Close chat" type="button">×</button>
             </div>
           </header>
 
@@ -185,7 +176,6 @@ function App() {
             <button type="submit" disabled={busy || !input.trim()}>SEND</button>
           </form>
         </section>
-      )}
     </main>
   )
 }
