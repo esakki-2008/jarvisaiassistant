@@ -19,11 +19,13 @@ export default async function handler(req, res) {
 
     const db = admin()
     const codeHash = crypto.createHash('sha256').update(String(code)).digest('hex')
-    const { data: request, error: lookupError } = await db
+    let requestQuery = db
       .from('pc_pairing_requests')
       .select('id,code_hash,expires_at,used')
-      .eq('id', pairingId)
-      .maybeSingle()
+    if (pairingId) requestQuery = requestQuery.eq('id', pairingId)
+    else requestQuery = requestQuery.order('created_at', { ascending: false }).limit(1)
+    const { data: requestRows, error: lookupError } = await requestQuery
+    const request = Array.isArray(requestRows) ? requestRows[0] : requestRows
 
     if (lookupError) throw lookupError
     if (!request || request.used || request.expires_at < new Date().toISOString() || request.code_hash !== codeHash) {
