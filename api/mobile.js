@@ -88,6 +88,24 @@ export default async function handler(req,res){
       }
       return res.status(200).json({reply:String(d.reply||'How can I help you?')})
     }
+    if(action==='memory'){
+      const token=req.headers.authorization?.replace(/^Bearer\\s+/i,'')
+      if(!token) return res.status(401).json({error:'Missing phone authentication.'})
+      const {data:device}=await db.from('mobile_devices').select('id,enabled').eq('device_token_hash',hash(token)).maybeSingle()
+      if(!device?.enabled) return res.status(401).json({error:'Phone is not authorized.'})
+      const mode=String(req.body?.mode||'list')
+      if(mode==='save'){
+        const content=String(req.body?.content||'').trim().slice(0,2000)
+        if(!content) return res.status(400).json({error:'Memory content is required.'})
+        const {data:item,error}=await db.from('mobile_memory').insert({device_id:device.id,content}).select('id,content,created_at').single()
+        if(error) throw error
+        return res.status(200).json({item})
+      }
+      const {data:items,error}=await db.from('mobile_memory').select('id,content,created_at').eq('device_id',device.id).order('created_at',{ascending:false}).limit(50)
+      if(error) throw error
+      return res.status(200).json({items:items||[]})
+    }
+
     if(action==='command'){
       const token=req.headers.authorization?.replace(/^Bearer\s+/i,'')
       if(!token) return res.status(401).json({error:'Missing phone pairing token.'})
