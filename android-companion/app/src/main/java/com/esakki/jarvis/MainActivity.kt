@@ -125,5 +125,58 @@ class MainActivity : Activity() {
     override fun onDestroy(){recognizer?.destroy();tts?.shutdown();executor.shutdownNow();super.onDestroy()}
 
     class HudBackgroundView(c:Context):View(c){private val p=Paint(1);override fun onDraw(x:Canvas){p.style=Paint.Style.STROKE;p.strokeWidth=1f;p.color=Color.rgb(0,27,35);var a=0f;while(a<width){x.drawLine(a,0f,a,height.toFloat(),p);a+=42};a=0f;while(a<height){x.drawLine(0f,a,width.toFloat(),a,p);a+=42}}}
-    class ReactorView(c:Context):View(c){enum class Mode{ONLINE,WORKING,ERROR};var mode=Mode.ONLINE;private val p=Paint(1);private var a=0f;override fun onDraw(c:Canvas){val x=width/2f;val y=height/2f;val r=minOf(width,height)*.25f;p.style=Paint.Style.FILL;p.shader=RadialGradient(x,y,r*1.8f,intArrayOf(Color.argb(110,0,229,255),Color.argb(25,0,130,170),Color.TRANSPARENT),floatArrayOf(0f,.45f,1f),Shader.TileMode.CLAMP);c.drawCircle(x,y,r*1.8f,p);p.shader=null;p.style=Paint.Style.STROKE;for(i in 0..5){p.strokeWidth=if(i==2)3f else 1f;p.color=Color.argb(if(i==2)210 else 80,0,229,255);val q=r*(1f+i*.18f);val s=a*(if(i%2==0)1f else-.7f)+i*31;c.drawArc(x-q,y-q,x+q,y+q,s,if(mode==Mode.WORKING)110f else 70f,false,p)}p.style=Paint.Style.FILL;p.color=Color.rgb(0,229,255);c.drawCircle(x,y,r*.34f,p);p.color=Color.BLACK;p.textAlign=Paint.Align.CENTER;p.typeface=Typeface.DEFAULT_BOLD;p.textSize=r*.16f;c.drawText("JARVIS",x,y+r*.05f,p);p.color=cyan;p.textSize=r*.07f;c.drawText(if(mode==Mode.WORKING)"WORKING"else if(mode==Mode.ERROR)"ALERT"else"ONLINE",x,y+r*.62f,p);a=(a+1.4f)%360;postInvalidateOnAnimation()}}
+    class ReactorView(context: Context) : View(context) {
+        enum class Mode { ONLINE, WORKING, ERROR }
+        var mode = Mode.ONLINE
+            set(value) { field = value; invalidate() }
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private var angle = 0f
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            val cx = width / 2f
+            val cy = height / 2f
+            val radius = minOf(width, height) * 0.24f
+            val glow = RadialGradient(
+                cx, cy, radius * 2f,
+                intArrayOf(Color.argb(110, 0, 229, 255), Color.argb(20, 0, 120, 160), Color.TRANSPARENT),
+                floatArrayOf(0f, 0.45f, 1f),
+                Shader.TileMode.CLAMP
+            )
+            paint.style = Paint.Style.FILL
+            paint.shader = glow
+            canvas.drawCircle(cx, cy, radius * 2f, paint)
+            paint.shader = null
+
+            paint.style = Paint.Style.STROKE
+            for (i in 0..5) {
+                paint.strokeWidth = if (i == 2) 3f else 1f
+                paint.color = Color.argb(if (i == 2) 210 else 80, 0, 229, 255)
+                val ring = radius * (1f + i * 0.18f)
+                val start = angle * if (i % 2 == 0) 1f else -0.7f + i * 31f
+                val sweep = if (mode == Mode.WORKING) 110f else 70f
+                canvas.drawArc(cx - ring, cy - ring, cx + ring, cy + ring, start, sweep, false, paint)
+            }
+
+            paint.style = Paint.Style.FILL
+            paint.color = Color.rgb(0, 229, 255)
+            canvas.drawCircle(cx, cy, radius * 0.34f, paint)
+            paint.color = Color.BLACK
+            paint.textAlign = Paint.Align.CENTER
+            paint.typeface = Typeface.DEFAULT_BOLD
+            paint.textSize = radius * 0.16f
+            canvas.drawText("JARVIS", cx, cy + radius * 0.05f, paint)
+
+            paint.color = Color.rgb(0, 229, 255)
+            paint.textSize = radius * 0.07f
+            val label = when (mode) {
+                Mode.WORKING -> "WORKING"
+                Mode.ERROR -> "ALERT"
+                Mode.ONLINE -> "ONLINE"
+            }
+            canvas.drawText(label, cx, cy + radius * 0.62f, paint)
+            angle = (angle + 1.4f) % 360f
+            postInvalidateOnAnimation()
+        }
+    }
 }
