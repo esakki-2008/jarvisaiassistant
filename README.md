@@ -21,3 +21,7 @@ A mobile-first, cloud-ready JARVIS personal AI assistant.
 4. Memory + personal assistant
 5. Tools + automation
 6. Deployment + advanced integrations
+
+## Secure PC Bridge
+
+JARVIS includes a Supabase-backed command queue and secure PC pairing architecture for remote Windows automation.
