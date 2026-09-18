@@ -256,6 +256,15 @@ function App() {
           if (result.results?.length) lines.push('\nRelated results:\n' + result.results.slice(0, 5).map((item, index) => (index + 1) + '. ' + item.title + (item.snippet ? '\n' + item.snippet : '') + (item.url ? '\n' + item.url : '')).join('\n\n'))
           addAssistantMessage(lines.join('\n') || 'I could not find a useful result for that search.')
           setStatus('SEARCH READY')
+        } else if (routed.tool === 'document') {
+          if (!ragChunks.length) {
+            addAssistantMessage('No document knowledge is loaded yet. Upload a PDF, DOCX, TXT, CSV or JSON with DOC.')
+            setStatus('DOCUMENT READY')
+          } else {
+            const reply = await askJarvisWithMemory(message, history.concat([{ role: 'system', content: 'Answer only from the retrieved document sections below. If they are insufficient, say so. Do not invent document facts.\\n' + context }]), cloudMemories)
+            addAssistantMessage(reply)
+            setStatus('DOCUMENT ANSWER READY')
+          }
         } else {
           const reply = await askJarvisWithMemory(message, history.concat(context ? [{ role: 'system', content: 'Answer using the following retrieved document sections. If the answer is not supported by them, say that the documents do not contain enough information. Do not invent document facts.\\n' + context }] : []), cloudMemories)
           setMessages((current) => [...current, { role: 'assistant', content: reply }])
