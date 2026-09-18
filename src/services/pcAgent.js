@@ -1,3 +1,5 @@
+import { getPcClientToken } from './pcPairing'
+
 const LOCAL_PC_AGENT_URL = 'http://127.0.0.1:8787'
 const REMOTE_PC_API = '/api/pc-command'
 
@@ -29,9 +31,17 @@ export async function executePcAction(action, value) {
     return data.message
   }
 
+  const clientToken = getPcClientToken()
+  if (!clientToken) {
+    throw new Error('JARVIS PC pairing is not authorized in this browser. Click PAIR PC in this browser first.')
+  }
+
   const data = await jsonFetch(REMOTE_PC_API, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + clientToken,
+    },
     body: JSON.stringify({ action, value }),
   })
   return data.message || 'Command queued for your paired PC.'
