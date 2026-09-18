@@ -222,7 +222,10 @@ function App() {
         const context = ragChunks.length
           ? '\\n\\nDOCUMENT KNOWLEDGE CONTEXT:\\n' + ragChunks.map((chunk) => '[' + chunk.documentName + ' | section ' + (chunk.index + 1) + ']\\n' + chunk.text).join('\\n\\n')
           : ''
-        const routed = await routeJarvis(message, history, Boolean(documentLibrary.length))
+        const documentIntent = documentLibrary.length > 0 && /\\b(this document|the document|document|pdf|docx|uploaded file|uploaded document|file contents|according to the file|according to the document|what is this about|summarize this|summary of this)\\b/i.test(message)
+        const routed = documentIntent
+          ? { tool: 'document', action: 'ask', value: message }
+          : await routeJarvis(message, history, Boolean(documentLibrary.length))
 
         if (routed.tool === 'mobile') {
           if (!mobilePairing?.deviceName) throw new Error('No phone is paired. Click PHONE and enter the 6-digit code in the Android Companion.')
