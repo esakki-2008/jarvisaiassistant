@@ -264,7 +264,11 @@ function App() {
             addAssistantMessage('No document knowledge is loaded yet. Upload a PDF, DOCX, TXT, CSV or JSON with DOC.')
             setStatus('DOCUMENT READY')
           } else {
-            const reply = await askJarvisWithMemory(message, history.concat([{ role: 'system', content: 'Answer only from the retrieved document sections below. If they are insufficient, say so. Do not invent document facts.\\n' + context }]), cloudMemories)
+            const documentSystem = {
+              role: 'system',
+              content: 'You are answering ONLY about the uploaded document knowledge below. Ignore previous conversation errors or unrelated messages. Use only the supplied document sections. If the sections are insufficient, say that clearly. Never answer with unrelated account or user lookup errors. Do not invent facts.\\n\\n' + context
+            }
+            const reply = await askJarvis(message, [documentSystem])
             addAssistantMessage(reply)
             setStatus('DOCUMENT ANSWER READY')
           }
