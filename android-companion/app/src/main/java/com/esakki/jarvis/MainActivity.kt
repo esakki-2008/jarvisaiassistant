@@ -87,6 +87,7 @@ class MainActivity : Activity() {
         features.addView(featureButton("VISION"){openCamera() },LinearLayout.LayoutParams(0,dp(40),1f).apply{marginEnd=dp(5)})
         features.addView(featureButton("FILES"){openFilePicker() },LinearLayout.LayoutParams(0,dp(40),1f).apply{marginEnd=dp(5)})
         features.addView(featureButton("CALENDAR"){showCalendar() },LinearLayout.LayoutParams(0,dp(40),1f).apply{marginEnd=dp(5)})
+        features.addView(featureButton("ALERTS"){openNotificationSettings() },LinearLayout.LayoutParams(0,dp(40),1f).apply{marginEnd=dp(5)})
         features.addView(featureButton("SECURE"){authenticate() },LinearLayout.LayoutParams(0,dp(40),1f))
         all.addView(features,LinearLayout.LayoutParams(-1,dp(48)))
 all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
