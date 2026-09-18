@@ -209,7 +209,6 @@ button { font: inherit; }
 .memory-strip{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px;border:1px solid rgba(70,240,255,.1);border-radius:12px;background:rgba(0,28,35,.65)}
 .memory-strip strong,.memory-strip span{display:block}.memory-strip strong{font-size:9px;letter-spacing:.12em}.memory-strip span{font-size:8px;color:rgba(190,255,255,.45);margin-top:3px}.memory-strip button{border:1px solid rgba(70,240,255,.2);background:transparent;color:#a9ffff;border-radius:8px;padding:6px 9px;font-size:8px}
 .pairing-strip .pair-code{display:inline-block;margin-top:6px;font-size:18px;letter-spacing:.18em;color:#28f5ff}
-@media(max-width:900px){.chat-panel{left:12px;right:12px;bottom:12px;width:auto;max-height:47svh}.reactor-stage{top:36%}.bottom-hint{display:none}.messages{max-height:25svh}}
 @media(max-width:600px){.chat-panel{left:8px;right:8px;bottom:8px;padding:10px;border-radius:18px;max-height:55svh}.chat-panel header{align-items:flex-start}.header-actions{max-width:65%;}.memory-button{padding:6px;font-size:7px}.reactor-stage{top:27%;height:54svh}.hud-ring{max-width:94vw;max-height:94vw}.core{width:138px;height:138px}.messages{max-height:28svh}.chat-form input{font-size:16px}.top-bar{top:10px}.chat-panel .pairing-strip{max-height:110px;overflow:auto}}
 
 /* unified system dock + state motion */
@@ -222,7 +221,7 @@ button { font: inherit; }
 
 
 /* desktop full-edge chat console */
-@media (min-width: 901px){
+@media (min-width: 601px){
   .chat-panel{
     top:0 !important;
     right:0 !important;
@@ -231,6 +230,7 @@ button { font: inherit; }
     width:62vw !important;
     max-width:none !important;
     max-height:none !important;
+    border:1px solid rgba(55,239,255,.2) !important;
     border-right:0 !important;
     border-top-right-radius:0 !important;
     border-bottom-right-radius:0 !important;
