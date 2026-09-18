@@ -1,6 +1,0 @@
-import crypto from 'node:crypto'
-import { createClient } from '@supabase/supabase-js'
-function admin(){const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!url||!key)throw new Error('Supabase is not configured on the server.');return createClient(url,key,{auth:{persistSession:false}})}
-function hash(v){return crypto.createHash('sha256').update(String(v||'')).digest('hex')}
-
-export default async function handler(req,res){try{if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});const code=String(Math.floor(100000+Math.random()*900000)),clientToken=crypto.randomBytes(32).toString('base64url'),db=admin(),expiresAt=new Date(Date.now()+10*60*1000).toISOString();const {data,error}=await db.from('mobile_pairing_requests').insert({code_hash:hash(code),client_token_hash:hash(clientToken),expires_at:expiresAt}).select('id,expires_at').single();if(error)throw error;return res.status(200).json({pairingId:data.id,code,clientToken,expiresAt})}catch(e){console.error(e);return res.status(500).json({error:'Mobile pairing setup failed.'})}}
