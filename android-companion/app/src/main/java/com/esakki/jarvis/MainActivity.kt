@@ -53,7 +53,7 @@ class MainActivity : Activity() {
         executor.execute {
             try {
                 val body = JSONObject().put("code", code).put("deviceName", android.os.Build.MODEL).toString()
-                val result = post("/api/mobile-pair-complete", body, null)
+                val result = post("/api/mobile?action=pair-complete", body, null)
                 prefs.edit().putString("deviceToken", result.getString("deviceToken")).apply()
                 runOnUiThread { status.text = "Paired: " + result.getString("deviceName"); startPolling() }
             } catch (e: Exception) { runOnUiThread { status.text = "Pairing failed: " + e.message } }
@@ -66,7 +66,7 @@ class MainActivity : Activity() {
             while (!isFinishing) {
                 try {
                     val token = prefs.getString("deviceToken", null) ?: break
-                    val response = post("/api/mobile-poll", "{}", token)
+                    val response = post("/api/mobile?action=poll", "{}", token)
                     if (response.has("command") && !response.isNull("command")) handleCommand(response.getJSONObject("command"), token)
                 } catch (_: Exception) {}
                 Thread.sleep(3000)
@@ -81,7 +81,7 @@ class MainActivity : Activity() {
         if (action == "call_contact" || action == "call_number") {
             runOnUiThread { confirmCall(id, action, value, token) }
         } else {
-            executor.execute { post("/api/mobile-result", JSONObject().put("commandId", id).put("ok", false).put("error", "Unsupported mobile action: $action").toString(), token) }
+            executor.execute { post("/api/mobile?action=result", JSONObject().put("commandId", id).put("ok", false).put("error", "Unsupported mobile action: $action").toString(), token) }
         }
     }
 
