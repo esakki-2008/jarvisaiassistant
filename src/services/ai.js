@@ -36,3 +36,19 @@ export async function askJarvisWithMemory(message, history = [], memories = []) 
   const memoryContext = memories.length ? '\n\nRELEVANT SAVED MEMORIES:\n' + memories.map((m) => m.content || m).slice(0, 12).join('\n') : ''
   return askJarvis(message, history.concat(memoryContext ? [{ role: 'system', content: memoryContext }] : []))
 }
+
+export async function analyzeImage(file, question = 'Analyze this image and explain what you see.') {
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('Could not read the image.'))
+    reader.readAsDataURL(file)
+  })
+  const response = await fetch('/api/vision', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: dataUrl, question }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data?.error || 'JARVIS vision failed.')
+  return data.reply
+}
