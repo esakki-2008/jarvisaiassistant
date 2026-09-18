@@ -19,6 +19,7 @@ function App() {
   const [messages, setMessages] = useState(() => loadMemory())
   const [showMemory, setShowMemory] = useState(false)
   const [pcOnline, setPcOnline] = useState(false)
+  const [listening, setListening] = useState(false)
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -128,7 +129,7 @@ function App() {
         <span>{time}</span>
       </div>
 
-      <section className="reactor-stage" aria-label="JARVIS assistant">
+      <section className={`reactor-stage ${listening ? 'is-listening' : ''}`} aria-label="JARVIS assistant">
         <div className="ambient-glow" />
         {rings.map((ring) => (
           <div key={ring.size} className={`hud-ring ${ring.reverse ? 'reverse' : ''}`} style={{ '--ring-size': `${ring.size}px`, '--ring-speed': `${ring.speed}s` }}>
@@ -167,7 +168,7 @@ function App() {
           </div>
 
           <div className="voice-controls">
-            <VoiceOrb onTranscript={handleVoiceTranscript} />
+            <VoiceOrb onTranscript={handleVoiceTranscript} onListeningChange={setListening} />
             <span>{pcOnline ? 'PC AUTOMATION ONLINE' : 'PC LINK OFFLINE'}</span>
           </div>
 
