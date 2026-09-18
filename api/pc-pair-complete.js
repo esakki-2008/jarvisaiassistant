@@ -13,22 +13,38 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
     const { pairingId, code, deviceName } = req.body || {}
-    if (!pairingId || !/^\d{6}$/.test(String(code || '')) || !deviceName) {
-      return res.status(400).json({ error: 'pairingId, six-digit code and deviceName are required.' })
+    if (!/^\d{6}$/.test(String(code || '')) || !deviceName) {
+      return res.status(400).json({ error: 'A six-digit code and deviceName are required.' })
     }
 
     const db = admin()
     const codeHash = crypto.createHash('sha256').update(String(code)).digest('hex')
+
     let requestQuery = db
       .from('pc_pairing_requests')
-      .select('id,code_hash,expires_at,used')
-    if (pairingId) requestQuery = requestQuery.eq('id', pairingId)
-    else requestQuery = requestQuery.order('created_at', { ascending: false }).limit(1)
-    const { data: requestRows, error: lookupError } = await requestQuery
-    const request = Array.isArray(requestRows) ? requestRows[0] : requestRows
+      .select('id,code_hash,expires_at,used,created_at')
 
+    if (pairingId) {
+      requestQuery = requestQuery.eq('id', pairingId).limit(1)
+    } else {
+      requestQuery = requestQuery
+        .eq('used', false)
+        .order('created_at', { ascending: false })
+        .limit(20)
+    }
+
+    const { data: requestRows, error: lookupError } = await requestQuery
     if (lookupError) throw lookupError
-    if (!request || request.used || request.expires_at < new Date().toISOString() || request.code_hash !== codeHash) {
+
+    const requests = Array.isArray(requestRows) ? requestRows : requestRows ? [requestRows] : []
+    const request = requests.find(
+      (item) =>
+        !item.used &&
+        item.expires_at >= new Date().toISOString() &&
+        item.code_hash === codeHash,
+    )
+
+    if (!request) {
       return res.status(400).json({ error: 'Pairing code is invalid or expired.' })
     }
 
@@ -37,7 +53,10 @@ export default async function handler(req, res) {
 
     const { data: device, error: deviceError } = await db
       .from('pc_devices')
-      .insert({ device_name: String(deviceName).slice(0, 100), device_token_hash: tokenHash })
+      .insert({
+        device_name: String(deviceName).slice(0, 100),
+        device_token_hash: tokenHash,
+      })
       .select('id,device_name')
       .single()
 
@@ -45,11 +64,20 @@ export default async function handler(req, res) {
 
     const { error: markError } = await db
       .from('pc_pairing_requests')
-      .update({ used: true, used_at: new Date().toISOString(), device_id: device.id })
-      .eq('id', pairingId)
+      .update({
+        used: true,
+        used_at: new Date().toISOString(),
+        device_id: device.id,
+      })
+      .eq('id', request.id)
 
     if (markError) throw markError
-    return res.status(200).json({ deviceId: device.id, deviceToken: token, deviceName: device.device_name })
+
+    return res.status(200).json({
+      deviceId: device.id,
+      deviceToken: token,
+      deviceName: device.device_name,
+    })
   } catch (error) {
     console.error('Pair complete error:', error)
     return res.status(500).json({ error: 'Could not complete secure PC pairing.' })
