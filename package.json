@@ -14,7 +14,9 @@
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "pdfjs-dist": "latest",
+    "mammoth": "latest"
   },
   "devDependencies": {}
 }
