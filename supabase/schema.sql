@@ -67,3 +67,16 @@ create index if not exists pc_pairing_requests_client_token_idx
 alter table public.pc_pairing_requests enable row level security;
 revoke all on public.pc_pairing_requests from anon, authenticated;
 grant all on public.pc_pairing_requests to service_role;
+
+-- Browser cloud memory. The browser stores only an opaque client token; the server stores its SHA-256 hash.
+create table if not exists public.web_memory (
+  id uuid primary key default gen_random_uuid(),
+  client_token_hash text not null,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists web_memory_client_created_idx
+  on public.web_memory(client_token_hash, created_at desc);
+alter table public.web_memory enable row level security;
+revoke all on public.web_memory from anon, authenticated;
+grant all on public.web_memory to service_role;
