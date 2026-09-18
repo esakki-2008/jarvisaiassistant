@@ -77,9 +77,44 @@ export default async function handler(req, res) {
 
     if (commandError) throw commandError
 
+    // Give the paired PC a short window to claim and execute the command.
+    // If it finishes in time, return the real result instead of only "queued".
+    const deadline = Date.now() + 7000
+    while (Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      const { data: current, error: statusError } = await db
+        .from('pc_commands')
+        .select('status,result')
+        .eq('id', command.id)
+        .single()
+
+      if (statusError) throw statusError
+      if (current.status === 'completed') {
+        return res.status(200).json({
+          ok: true,
+          queued: false,
+          completed: true,
+          commandId: command.id,
+          deviceName: device.device_name,
+          message: current.result || 'Command completed successfully.',
+        })
+      }
+      if (current.status === 'failed') {
+        return res.status(200).json({
+          ok: false,
+          queued: false,
+          completed: true,
+          commandId: command.id,
+          deviceName: device.device_name,
+          message: current.result || 'PC action failed.',
+        })
+      }
+    }
+
     return res.status(200).json({
       ok: true,
       queued: true,
+      completed: false,
       commandId: command.id,
       deviceName: device.device_name,
       message: 'Command queued for ' + device.device_name + '.',
