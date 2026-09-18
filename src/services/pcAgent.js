@@ -58,6 +58,11 @@ export function detectPcAction(message) {
   }
 
   const sites = [['youtube','https://www.youtube.com'],['google','https://www.google.com'],['github','https://github.com'],['gmail','https://mail.google.com'],['chatgpt','https://chatgpt.com']]
+
+  const search = text.match(/^(?:search|google|look up|find)\s+(?:for\s+)?(.+)$/i)
+  if (search) return { action:'search_web', value:search[1].trim() }
+  const openSearch = text.match(/^(?:open|search)\s+(?:google\s+)?(?:and\s+)?search\s+(?:for\s+)?(.+)$/i)
+  if (openSearch) return { action:'search_web', value:openSearch[1].trim() }
   if (/^(open|launch|visit|go to)\s+/i.test(text)) {
     const site = sites.find(([name]) => lower.includes(name))
     if (site) return { action:'open_url', value:site[1] }
