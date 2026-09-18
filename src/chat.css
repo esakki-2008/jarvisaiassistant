@@ -1,11 +1,10 @@
 .chat-panel {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(68px, 8vh, 92px);
-  transform: translateX(-50%);
+  position: fixed;
+  top: 76px;
+  right: 22px;
   z-index: 20;
-  width: min(620px, calc(100vw - 32px));
-  height: min(430px, calc(100vh - 150px));
+  width: min(360px, calc(100vw - 44px));
+  height: min(390px, calc(100vh - 110px));
   display: grid;
   grid-template-rows: auto auto 1fr auto auto;
   border: 1px solid rgba(91, 246, 255, .34);
@@ -44,10 +43,10 @@
 .chat-form button { min-width: 68px; padding: 0 14px; border: 1px solid rgba(80,247,255,.35); border-radius: 11px; background: rgba(0,255,255,.08); color: #bfffff; font-size: 8px; letter-spacing: .15em; cursor: pointer; transition: .2s ease; }
 .chat-form button:hover:not(:disabled) { background: rgba(0,255,255,.16); box-shadow: 0 0 18px rgba(0,255,255,.12); }
 .chat-form button:disabled { opacity: .3; cursor: not-allowed; }
-@keyframes console-in { from { opacity: 0; transform: translate(-50%, 18px) scale(.97); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes console-in { from { opacity: 0; transform: translateX(24px) scale(.97); } to { opacity: 1; transform: translateX(0) scale(1); } }
 @keyframes console-scan { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 @media (max-width: 600px) {
-  .chat-panel { left: 12px; right: 12px; bottom: 58px; transform: none; width: auto; height: min(430px, calc(100vh - 100px)); border-radius: 18px; }
+  .chat-panel { top: 66px; right: 10px; width: calc(100vw - 20px); height: min(330px, calc(100vh - 82px)); border-radius: 18px; }
   .voice-controls { min-height: 58px; }
   .voice-controls .voice-orb { flex-basis: 48px; width: 48px; height: 48px; }
   .message { max-width: 88%; }
