@@ -27,12 +27,25 @@ export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
+    const clientToken = req.headers.authorization?.replace(/^Bearer\\s+/i, '')
+    if (!clientToken) return res.status(401).json({ error: 'JARVIS PC pairing is not authorized in this browser.' })
+
     const { action, value } = req.body || {}
     if (!ALLOWED_ACTIONS.has(action)) {
       return res.status(400).json({ error: 'Unsupported or unsafe PC action.' })
     }
 
     const db = admin()
+    const clientTokenHash = hashToken(clientToken)
+    const { data: pairing, error: pairingError } = await db
+      .from('pc_pairing_requests')
+      .select('id,device_id,used,expires_at')
+      .eq('client_token_hash', clientTokenHash)
+      .eq('used', true)
+      .maybeSingle()
+
+    if (pairingError) throw pairingError
+    if (!pairing?.device_id) return res.status(409).json({ error: 'No paired PC is associated with this JARVIS browser.' })
 
     // The browser never receives the PC device token.
     // The active device is selected server-side from the paired-device record.
@@ -40,18 +53,13 @@ export default async function handler(req, res) {
     const { data: devices, error: deviceError } = await db
       .from('pc_devices')
       .select('id,device_name,last_seen_at')
+      .eq('id', pairing.device_id)
       .eq('enabled', true)
-      .order('last_seen_at', { ascending: false })
-      .limit(2)
 
     if (deviceError) throw deviceError
     if (!devices?.length) {
       return res.status(409).json({ error: 'No JARVIS PC is paired yet.' })
     }
-    if (devices.length > 1) {
-      return res.status(409).json({ error: 'Multiple PCs are paired. Device selection will be added before remote control is enabled.' })
-    }
-
     const device = devices[0]
 
     const safeValue = value == null ? null : String(value).slice(0, 1000)
