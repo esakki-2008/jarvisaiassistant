@@ -122,8 +122,8 @@ function App() {
       }
 
       const rememberMatch = message.match(/^(?:jarvis[, ]*)?(?:remember|save this|remember that)\s+(.+)$/i)
-      if (rememberMatch) { saveFact(rememberMatch[1]); addAssistantMessage("I'll remember that: " + rememberMatch[1]); setStatus('MEMORY SAVED'); return }
-      if (/^(?:what do you remember|show my memories|my memories)$/i.test(message)) { const facts = loadFacts(); addAssistantMessage(facts.length ? 'I remember:\n• ' + facts.join('\n• ') : 'I do not have any saved facts yet.'); setStatus('MEMORY READY'); return }
+      if (rememberMatch) { const fact = rememberMatch[1].replace(/^that\s+/i, '').trim(); if (fact) { saveFact(fact); addAssistantMessage("I'll remember that: " + fact); setStatus('MEMORY SAVED'); return } }
+      if (/^(?:what do you remember|show my memories|my memories)[?.!]?$/i.test(message.trim())) { const facts = loadFacts(); addAssistantMessage(facts.length ? 'I remember:\n• ' + facts.join('\n• ') : 'I do not have any saved facts yet.'); setStatus('MEMORY READY'); return }
 
       const pcAction = detectPcAction(message)
 
