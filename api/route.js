@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     if (!message || typeof message !== 'string') return res.status(400).json({ error: 'A message is required.' })
 
     const apiKey = process.env.OPENROUTER_API_KEY
-    const model = process.env.OPENROUTER_MODEL || 'openrouter/free'
+    const models = [process.env.OPENROUTER_MODEL, 'openrouter/free'].filter(Boolean)
     if (!apiKey) return res.status(503).json({ error: 'JARVIS AI is not configured on the server.' })
 
     const system = `You are the JARVIS tool router. Classify the user's latest request into exactly one tool.
@@ -27,7 +27,10 @@ Never invent that an action was performed. For ambiguous requests use chat. If t
       { role: 'user', content: message },
     ]
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    let response
+    let data
+    for (const model of [...new Set(models)]) {
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method:'POST',
       headers:{
         'Content-Type':'application/json',
@@ -37,8 +40,10 @@ Never invent that an action was performed. For ambiguous requests use chat. If t
       },
       body:JSON.stringify({ model, messages, temperature:0, max_tokens:220 }),
     })
-    const data = await response.json().catch(()=>({}))
-    if (!response.ok) return res.status(502).json({ error:data?.error?.message || 'JARVIS router could not reach the AI provider.' })
+      data = await response.json().catch(()=>({}))
+      if (response.ok) break
+    }
+    if (!response?.ok) return res.status(502).json({ error:data?.error?.message || 'JARVIS router could not reach the AI provider.' })
 
     const raw = data?.choices?.[0]?.message?.content || ''
     const match = raw.match(/\{[\s\S]*\}/)
