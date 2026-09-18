@@ -78,6 +78,19 @@ class MainActivity : Activity() {
     }
 
     private fun sendText(){val text=input.text.toString().trim();if(text.isEmpty())return;input.setText("");addBubble("YOU",text,false);askJarvis(text)}
+    private fun openWhatsApp(message:String){
+        val m=message.trim()
+        val phone=Regex("""(?:whatsapp|message)\s+(?:to\s+)?(\+?[0-9][0-9 -]{7,})\s*[:,-]\s*(.+)""",RegexOption.IGNORE_CASE).find(m)
+        val name=Regex("""(?:whatsapp|message)\s+(?:to\s+)?([A-Za-z][A-Za-z .'-]{1,60})\s*[:,-]\s*(.+)""",RegexOption.IGNORE_CASE).find(m)
+        val target=phone?.groupValues?.get(1)?.replace("[^0-9+]".toRegex(),"") ?: name?.groupValues?.get(1)
+        val body=phone?.groupValues?.get(2) ?: name?.groupValues?.get(2)
+        if(target==null||body==null)return
+        val number=if(phone!=null)target else findContactNumber(target)
+        if(number==null){addBubble("JARVIS","WhatsApp contact not found: "+target,true);return}
+        val uri=Uri.parse("https://wa.me/"+number.replace("+","")+"?text="+Uri.encode(body))
+        AlertDialog.Builder(this).setTitle("JARVIS WHATSAPP").setMessage("Open WhatsApp for "+target+" with this message ready?\n\n"+body).setNegativeButton("CANCEL",null).setPositiveButton("OPEN"){_,_->startActivity(Intent(Intent.ACTION_VIEW,uri));addBubble("JARVIS","WhatsApp opened with the message ready. Tap Send in WhatsApp.",true)}.show()
+    }
+
     private fun cloudMemory(mode:String,content:String?=null,callback:(String)->Unit){
         executor.execute{try{
             val token=prefs.getString("deviceToken",null)?:throw Exception("Phone is not paired.")
@@ -88,6 +101,7 @@ class MainActivity : Activity() {
     }
 
     private fun askJarvis(message:String){
+        if (Regex("""^(?:whatsapp|message)\s+(?:to\s+)?""",RegexOption.IGNORE_CASE).containsMatchIn(message)) { runOnUiThread { openWhatsApp(message) }; return }
         status.text="JARVIS THINKING";reactor.mode=ReactorView.Mode.WORKING
         executor.execute{try{
             val historyArray=org.json.JSONArray();history.takeLast(8).forEach{historyArray.put(it)};val body=JSONObject().put("message",message).put("history",historyArray).toString()
