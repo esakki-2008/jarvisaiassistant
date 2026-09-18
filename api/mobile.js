@@ -59,8 +59,11 @@ export default async function handler(req,res){
       const key=process.env.OPENROUTER_API_KEY
       const model=process.env.OPENROUTER_MODEL||'openrouter/free'
       if(!key) return res.status(503).json({error:'JARVIS AI is not configured on the server.'})
-      const system='You are JARVIS. Return ONLY JSON: {"tool":"chat|mobile|pc","action":"...","value":"...","reply":"..."}. mobile actions: call_contact, call_number. pc actions: open_app, open_path, open_url, search_web, type_text, key_press, hotkey, mouse_click, mouse_move. For normal conversation use chat. Never claim an action happened before confirmation.'
-      const messages=[{role:'system',content:system},...(Array.isArray(history)?history.filter(x=>x&&(x.role==='user'||x.role==='assistant')&&typeof x.content==='string').slice(-8):[]),{role:'user',content:String(message)}]
+      const {data:memoryRows,memoryError}=await db.from('mobile_memory').select('content,created_at').eq('device_id',device.id).order('created_at',{ascending:false}).limit(20)
+      if(memoryError) throw memoryError
+      const memoryContext=(memoryRows||[]).map((x)=>x.content).filter(Boolean).join('\\n')
+      const system='You are JARVIS. Return ONLY JSON: {"tool":"chat|mobile|pc|memory","action":"...","value":"...","reply":"..."}. mobile actions: call_contact, call_number. pc actions: open_app, open_path, open_url, search_web, type_text, key_press, hotkey, mouse_click, mouse_move. memory actions: save or recall. For normal conversation use chat. Use relevant saved memories when answering, but do not reveal unrelated memories. Save memory only when the user explicitly asks you to remember/save something. Never claim an action happened before confirmation.'
+      const messages=[{role:'system',content:system+(memoryContext?'\\n\\nRELEVANT SAVED MEMORIES:\\n'+memoryContext:'')},...(Array.isArray(history)?history.filter(x=>x&&(x.role==='user'||x.role==='assistant')&&typeof x.content==='string').slice(-8):[]),{role:'user',content:String(message)}]
       const ai=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key,'HTTP-Referer':'https://github.com/esakki-2008/jarvisaiassistant','X-Title':'JARVIS AI Assistant'},body:JSON.stringify({model,messages,temperature:0,max_tokens:350})})
       const data=await ai.json().catch(()=>({}))
       if(!ai.ok) return res.status(502).json({error:data?.error?.message||'AI provider error.'})
@@ -69,6 +72,17 @@ export default async function handler(req,res){
       if(!match) return res.status(502).json({error:'JARVIS returned an invalid response.'})
       let d
       try{d=JSON.parse(match[0])}catch{return res.status(502).json({error:'JARVIS returned invalid JSON.'})}
+      if(d.tool==='memory'&&d.action==='save'){
+        const content=String(d.value||'').trim().slice(0,2000)
+        if(!content) return res.status(400).json({error:'No memory content found.'})
+        const {data:item,error}=await db.from('mobile_memory').insert({device_id:device.id,content}).select('id,content,created_at').single()
+        if(error) throw error
+        return res.status(200).json({reply:'I’ll remember that: '+content,action:'memory_saved',memoryId:item.id})
+      }
+      if(d.tool==='memory'&&d.action==='recall'){
+        const items=(memoryRows||[]).map(x=>x.content).filter(Boolean)
+        return res.status(200).json({reply:items.length?'Here’s what I remember:\\n• '+items.join('\\n• '):'I do not have any saved memories yet.',action:'memory_recalled'})
+      }
       if(d.tool==='mobile'&&['call_contact','call_number'].includes(d.action)){
         const value=String(d.value||'').trim()
         if(!value) return res.status(400).json({error:'No call target found.'})
