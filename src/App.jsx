@@ -131,14 +131,15 @@ function App() {
       const pcAction = detectPcAction(message)
 
       if (pcAction) {
-        if (!pcOnline) {
-          throw new Error('PC agent is offline. Start it with: node pc-agent/server.js')
+        if (!pcOnline && !pairing) {
+          throw new Error('No PC is paired. Click PAIR PC first, then pair your Windows PC.')
         }
 
         setStatus('PC ACTION')
         const result = await executePcAction(pcAction.action, pcAction.value)
         addAssistantMessage(result)
-        setPcOnline(true)
+        if (pcOnline) setPcOnline(true)
+        else setStatus('COMMAND QUEUED')
       } else {
         const context = documentContext ? '\\n\\nDOCUMENT: ' + documentContext.name + '\\n' + documentContext.text : ''
         const reply = await askJarvis(message, history.concat(context ? [{ role: 'user', content: 'Use this document as context for the next request:\\n' + context }] : []))
@@ -152,7 +153,7 @@ function App() {
     } finally {
       setBusy(false)
     }
-  }, [busy, input, messages, pcOnline])
+  }, [busy, input, messages, pcOnline, pairing])
 
   const handleVoiceTranscript = useCallback((transcript) => {
     setStatus('VOICE INPUT')
