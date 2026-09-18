@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { askJarvis } from './services/ai'
 import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory } from './services/memory'
+import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
 
 const rings = [
   { size: 520, speed: 34, reverse: false },
@@ -18,6 +19,7 @@ function App() {
   const [busy, setBusy] = useState(false)
   const [messages, setMessages] = useState(() => loadMemory())
   const [showMemory, setShowMemory] = useState(false)
+  const [pcOnline, setPcOnline] = useState(false)
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -30,9 +32,43 @@ function App() {
     saveMemory(messages)
   }, [messages])
 
+  useEffect(() => {
+    let active = true
+    const check = async () => {
+      try {
+        await pcAgentStatus()
+        if (active) setPcOnline(true)
+      } catch {
+        if (active) setPcOnline(false)
+      }
+    }
+    check()
+    const timer = setInterval(check, 5000)
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
+  }, [])
+
   const activate = () => {
     setOpen(true)
-    setStatus('READY')
+    setStatus(pcOnline ? 'PC LINK READY' : 'READY')
+  }
+
+  const speak = (text) => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = 'en-IN'
+      utterance.rate = 1
+      utterance.pitch = 0.95
+      window.speechSynthesis.speak(utterance)
+    }
+  }
+
+  const addAssistantMessage = (content) => {
+    setMessages((current) => [...current, { role: 'assistant', content }])
+    speak(content)
   }
 
   const sendMessage = useCallback(async (eventOrMessage) => {
@@ -48,17 +84,22 @@ function App() {
     setStatus('THINKING')
 
     try {
-      const reply = await askJarvis(message, history)
-      setMessages((current) => [...current, { role: 'assistant', content: reply }])
-      setStatus('READY')
+      const pcAction = detectPcAction(message)
 
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
-        const utterance = new SpeechSynthesisUtterance(reply)
-        utterance.lang = 'en-IN'
-        utterance.rate = 1
-        utterance.pitch = 0.95
-        window.speechSynthesis.speak(utterance)
+      if (pcAction) {
+        if (!pcOnline) {
+          throw new Error('PC agent is offline. Start it with: node pc-agent/server.js')
+        }
+
+        setStatus('PC ACTION')
+        const result = await executePcAction(pcAction.action, pcAction.value)
+        addAssistantMessage(result)
+        setPcOnline(true)
+      } else {
+        const reply = await askJarvis(message, history)
+        setMessages((current) => [...current, { role: 'assistant', content: reply }])
+        setStatus('READY')
+        speak(reply)
       }
     } catch (error) {
       setMessages((current) => [...current, { role: 'assistant', content: error.message }])
@@ -66,7 +107,7 @@ function App() {
     } finally {
       setBusy(false)
     }
-  }, [busy, input, messages])
+  }, [busy, input, messages, pcOnline])
 
   const handleVoiceTranscript = useCallback((transcript) => {
     setOpen(true)
@@ -127,14 +168,17 @@ function App() {
           )}
 
           <div className="messages" aria-live="polite">
-            {messages.length === 0 && <div className="welcome">JARVIS AI core ready.<br />Conversation memory is enabled locally.</div>}
+            {messages.length === 0 && <div className="welcome">JARVIS AI core ready.<br />PC control is available when the local agent is online.</div>}
             {messages.map((item, index) => (
               <div key={`${item.role}-${index}`} className={`message ${item.role}`}><span>{item.content}</span></div>
             ))}
             {busy && <div className="message assistant"><span>Thinking…</span></div>}
           </div>
 
-          <div className="voice-controls"><VoiceOrb onTranscript={handleVoiceTranscript} /><span>{status === 'VOICE INPUT' ? 'Listening / processing…' : 'VOICE'}</span></div>
+          <div className="voice-controls">
+            <VoiceOrb onTranscript={handleVoiceTranscript} />
+            <span>{pcOnline ? 'PC LINK ONLINE' : 'PC LINK OFFLINE'}</span>
+          </div>
 
           <form className="chat-form" onSubmit={sendMessage}>
             <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Type a command…" aria-label="Message JARVIS" disabled={busy} />
