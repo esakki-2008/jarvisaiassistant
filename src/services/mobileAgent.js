@@ -8,4 +8,4 @@ export async function getMobilePairingStatus(){const token=getMobileToken();if(!
 export function saveMobileDevice(deviceName){const p=getMobilePairing()||{};const n={...p,deviceName};localStorage.setItem(PAIR_KEY,JSON.stringify(n));return n}
 export function clearMobilePairing(){localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(PAIR_KEY)}
 export async function executeMobileCall(action,value){const token=getMobileToken();if(!token)throw new Error('No Android phone is paired. Click PHONE first.');const d=await post('/api/mobile-command',{action,value},token);return d.message||'Phone call command queued.'}
-export function detectMobileCall(message){const t=message.trim();let m=t.match(/^(?:jarvis[, ]*)?(?:call|dial)\s+(.+)$/i);if(!m)return null;const v=m[1].trim();return /^\\+?[0-9][0-9 ()-]{6,}$/.test(v)?{action:'call_number',value:v}:{action:'call_contact',value:v}}
+export function detectMobileCall(message){const t=message.trim();let m=t.match(/^(?:jarvis[, ]*)?(?:call|dial)\s+(.+)$/i);if(!m)return null;const v=m[1].trim();return /^\+?[0-9][0-9 ()-]{6,}$/.test(v)?{action:'call_number',value:v}:{action:'call_contact',value:v}}
