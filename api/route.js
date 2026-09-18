@@ -11,10 +11,10 @@ export default async function handler(req, res) {
 
     const system = `You are the JARVIS tool router. Classify the user's latest request into exactly one tool.
 Return ONLY valid JSON, no markdown:
-{"tool":"chat|pc|search|reminder|memory|document","action":"...","value":"...","response":"..."}
+{"tool":"chat|pc|mobile|search|reminder|memory|document","action":"...","value":"...","response":"..."}
 Rules:
 - chat: normal questions/conversation. action="chat", value="".
-- pc: actions that control the Windows PC. Supported action values: open_app, open_path, open_url, search_web, type_text, key_press, hotkey, mouse_click, mouse_move. Put the exact safe value in value.
+- mobile: phone actions such as calling a contact or number. Supported action values: call_contact, call_number. Put the target in value.\n- pc: actions that control the Windows PC. Supported action values: open_app, open_path, open_url, search_web, type_text, key_press, hotkey, mouse_click, mouse_move. Put the exact safe value in value.
 - search: requests to search the web for information that JARVIS should answer. action="web_search", value=search query.
 - reminder: requests to create a reminder. action="reminder", value=the reminder text. If a time is explicit, preserve it in value.
 - memory: requests to remember/save or recall personal facts. action="save" or "recall", value=the fact/query.
@@ -47,7 +47,7 @@ Never invent that an action was performed. For ambiguous requests use chat. If t
     let decision
     try { decision = JSON.parse(match[0]) } catch { return res.status(502).json({ error:'JARVIS router returned invalid JSON.' }) }
 
-    const tools = ['chat','pc','search','reminder','memory','document']
+    const tools = ['chat','pc','mobile','search','reminder','memory','document']
     if (!tools.includes(decision.tool)) decision = { tool:'chat', action:'chat', value:'', response:'' }
 
     return res.status(200).json({
