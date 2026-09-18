@@ -21,6 +21,7 @@ function App() {
   const [pcOnline, setPcOnline] = useState(false)
   const [listening, setListening] = useState(false)
   const [reminders, setReminders] = useState(() => { try { return JSON.parse(localStorage.getItem('jarvis-reminders-v1') || '[]') } catch { return [] } })
+  const [showReminders, setShowReminders] = useState(false)
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -185,15 +186,23 @@ function App() {
         <div className="orbit orbit-one" /><div className="orbit orbit-two" />
       </section>
 
-      <div className="bottom-hint"><span className="pulse-dot" />Tap the core to open JARVIS</div>
+      <div className="bottom-hint"><span className="pulse-dot" />JARVIS • AI • VOICE • MEMORY • REMINDERS</div>
 
       <section className="chat-panel" aria-label="JARVIS command console">
           <header>
             <div><strong>J.A.R.V.I.S</strong><small>{status}</small></div>
             <div className="header-actions">
               <button className="memory-button" onClick={() => setShowMemory((value) => !value)} type="button">MEMORY <span>{messages.length}</span></button>
+              <button className="memory-button" onClick={() => setShowReminders((value) => !value)} type="button">TASKS <span>{reminders.filter((item) => !item.done).length}</span></button>
             </div>
           </header>
+
+          {showReminders && (
+            <div className="memory-strip">
+              <div><strong>REMINDERS</strong><span>{reminders.filter((item) => !item.done).length} pending</span></div>
+              <button type="button" onClick={() => setReminders((current) => current.map((item) => ({ ...item, done: true })))}>CLEAR</button>
+            </div>
+          )}
 
           {showMemory && (
             <div className="memory-strip">
@@ -203,7 +212,7 @@ function App() {
           )}
 
           <div className="messages" aria-live="polite">
-            {messages.length === 0 && <div className="welcome">JARVIS AI core ready.<br />PC automation is available when the local agent is online.<br /><small>Try: “Type hello” • “Press Enter” • “Press Ctrl+L” • “Move mouse to 500,300” • “Click”</small></div>}
+            {messages.length === 0 && <div className="welcome">JARVIS AI core ready.<br />Memory and reminders are active. PC automation is available when the local agent is online.<br /><small>Try: “Type hello” • “Press Enter” • “Press Ctrl+L” • “Move mouse to 500,300” • “Click”</small></div>}
             {messages.map((item, index) => (
               <div key={`${item.role}-${index}`} className={`message ${item.role}`}><span>{item.content}</span></div>
             ))}
