@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { askJarvis, routeJarvis, searchJarvis } from './services/ai'
+import { askJarvis, askJarvisWithMemory, routeJarvis, searchJarvis } from './services/ai'
+import { loadCloudMemories, saveCloudMemory } from './services/cloudMemory'
 import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
 import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
@@ -21,6 +22,7 @@ function App() {
   const [busy, setBusy] = useState(false)
   const [messages, setMessages] = useState(() => loadMemory())
   const [showMemory, setShowMemory] = useState(false)
+  const [cloudMemories, setCloudMemories] = useState([])
   const [pcOnline, setPcOnline] = useState(false)
   const [listening, setListening] = useState(false)
   const [reminders, setReminders] = useState(() => { try { return JSON.parse(localStorage.getItem('jarvis-reminders-v1') || '[]') } catch { return [] } })
@@ -43,6 +45,12 @@ function App() {
   useEffect(() => {
     saveMemory(messages)
   }, [messages])
+
+  useEffect(() => {
+    let active = true
+    loadCloudMemories().then((items) => { if (active) setCloudMemories(items) }).catch(() => {})
+    return () => { active = false }
+  }, [])
 
   useEffect(() => { localStorage.setItem('jarvis-reminders-v1', JSON.stringify(reminders)) }, [reminders])
 
@@ -174,8 +182,8 @@ function App() {
       }
 
       const rememberMatch = message.match(/^(?:jarvis[, ]*)?(?:remember|save this|remember that)\s+(.+)$/i)
-      if (rememberMatch) { const fact = rememberMatch[1].replace(/^that\s+/i, '').trim(); if (fact) { saveFact(fact); addAssistantMessage("I'll remember that: " + fact); setStatus('MEMORY SAVED'); return } }
-      if (/^(?:what do you remember|show my memories|my memories)[?.!]?$/i.test(message.trim())) { const facts = loadFacts(); addAssistantMessage(facts.length ? 'I remember:\n• ' + facts.join('\n• ') : 'I do not have any saved facts yet.'); setStatus('MEMORY READY'); return }
+      if (rememberMatch) { const fact = rememberMatch[1].replace(/^that\s+/i, '').trim(); if (fact) { saveFact(fact); try { const item = await saveCloudMemory(fact); setCloudMemories((current) => [item, ...current].slice(0, 50)) } catch {} addAssistantMessage("I'll remember that: " + fact); setStatus('MEMORY SAVED'); return } }
+      if (/^(?:what do you remember|show my memories|my memories)[?.!]?$/i.test(message.trim())) { const facts = loadFacts(); const cloud = cloudMemories.map((item) => item.content); const all = [...new Set([...facts, ...cloud])]; addAssistantMessage(all.length ? 'I remember:\n• ' + all.join('\n• ') : 'I do not have any saved facts yet.'); setStatus('MEMORY READY'); return }
 
       const mobileCall = detectMobileCall(message)
       if (mobileCall) {
@@ -219,6 +227,7 @@ function App() {
           else setStatus('COMMAND QUEUED')
         } else if (routed.tool === 'memory' && routed.action === 'save' && routed.value) {
           saveFact(routed.value)
+          try { const item = await saveCloudMemory(routed.value); setCloudMemories((current) => [item, ...current].slice(0, 50)) } catch {}
           addAssistantMessage("I'll remember that: " + routed.value)
           setStatus('MEMORY SAVED')
         } else if (routed.tool === 'memory' && routed.action === 'recall') {
@@ -234,7 +243,7 @@ function App() {
           addAssistantMessage(lines.join('\n') || 'I could not find a useful result for that search.')
           setStatus('SEARCH READY')
         } else {
-          const reply = await askJarvis(message, history.concat(context ? [{ role: 'user', content: 'Use this document as context for the next request:\\n' + context }] : []))
+          const reply = await askJarvisWithMemory(message, history.concat(context ? [{ role: 'user', content: 'Use this document as context for the next request:\\n' + context }] : []), cloudMemories)
           setMessages((current) => [...current, { role: 'assistant', content: reply }])
           setStatus('READY')
           speak(reply)
@@ -391,7 +400,7 @@ function App() {
 
           {showMemory && (
             <div className="memory-strip">
-              <div><strong>LOCAL MEMORY</strong><span>{messages.length} messages stored on this browser</span></div>
+              <div><strong>LOCAL MEMORY</strong><span>{messages.length} messages • {cloudMemories.length} cloud memories</span></div>
               <button type="button" onClick={handleClearMemory}>CLEAR</button>
             </div>
           )}
