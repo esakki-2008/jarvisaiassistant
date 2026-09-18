@@ -53,3 +53,23 @@
   .memory-strip span { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 @media (prefers-reduced-motion: reduce) { .chat-panel, .chat-panel::before { animation: none; } .chat-panel * { scroll-behavior: auto; } }
+
+
+.pairing-strip {
+  border-color: rgba(53, 239, 246, .35);
+}
+.pairing-strip strong {
+  color: #bffcff;
+}
+.pair-code {
+  display: block;
+  margin-top: 7px;
+  font-size: 24px;
+  letter-spacing: .28em;
+  color: #eaffff;
+  text-shadow: 0 0 14px rgba(36, 255, 255, .7);
+}
+.memory-button:disabled {
+  opacity: .5;
+  cursor: wait;
+}
