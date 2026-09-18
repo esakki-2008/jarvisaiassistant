@@ -71,6 +71,20 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!mobilePairing || mobilePairing.deviceName) return
+    let active = true
+    const check = async () => {
+      const result = await getMobilePairingStatus()
+      if (!active) return
+      if (result.paired && result.deviceName) { setMobilePairing(saveMobileDevice(result.deviceName)); setStatus('PHONE PAIRED'); return }
+      if (result.expired) setStatus('PHONE PAIRING EXPIRED')
+    }
+    check()
+    const timer = setInterval(check, 2500)
+    return () => { active = false; clearInterval(timer) }
+  }, [mobilePairing])
+
+  useEffect(() => {
     if (!pairing || pairing.deviceName) return
     let active = true
     setPairingChecking(true)
