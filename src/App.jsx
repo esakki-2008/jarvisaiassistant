@@ -340,7 +340,12 @@ function App() {
         <div className="orbit orbit-one" /><div className="orbit orbit-two" />
       </section>
 
-      <div className="bottom-hint"><span className="pulse-dot" />JARVIS • AI • VOICE • MEMORY • REMINDERS</div>
+      <div className="system-dock" aria-label="JARVIS system status">
+  <span className="dock-node active"><i />CORE</span><span className="dock-line" />
+  <span className="dock-node"><i />VOICE</span><span className="dock-line" />
+  <span className="dock-node"><i />MEMORY</span><span className="dock-line" />
+  <span className="dock-node"><i />NETWORK</span>
+</div>
 
       <section className="chat-panel" aria-label="JARVIS command console">
           <header>
