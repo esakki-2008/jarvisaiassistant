@@ -241,7 +241,7 @@ function App() {
     } finally {
       setBusy(false)
     }
-  }, [busy, input, messages, pcOnline, pairing])
+  }, [busy, input, messages, pcOnline, pairing, mobilePairing, documentContext])
 
   const handleVoiceTranscript = useCallback((transcript) => {
     setStatus('VOICE INPUT')
