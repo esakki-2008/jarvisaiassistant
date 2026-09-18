@@ -4,6 +4,7 @@ import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
 import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
 import { readDocument, documentSummary } from './services/document'
+import { getPairing, startPcPairing, clearPcPairing } from './services/pcPairing'
 
 const rings = [
   { size: 520, speed: 34, reverse: false },
@@ -24,6 +25,8 @@ function App() {
   const [reminders, setReminders] = useState(() => { try { return JSON.parse(localStorage.getItem('jarvis-reminders-v1') || '[]') } catch { return [] } })
   const [showReminders, setShowReminders] = useState(false)
   const [documentContext, setDocumentContext] = useState(null)
+  const [pairing, setPairing] = useState(() => getPairing())
+  const [pairingBusy, setPairingBusy] = useState(false)
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -170,6 +173,27 @@ function App() {
     } catch (error) { setMessages((current) => [...current, { role: 'assistant', content: error.message }]); setStatus('DOCUMENT ERROR') }
   }
 
+  const handleStartPairing = async () => {
+    setPairingBusy(true)
+    try {
+      const data = await startPcPairing()
+      setPairing(data)
+      setStatus('PAIRING READY')
+    } catch (error) {
+      addAssistantMessage(error.message)
+      setStatus('PAIRING ERROR')
+    } finally {
+      setPairingBusy(false)
+    }
+  }
+
+  const handleUnpair = () => {
+    clearPcPairing()
+    setPairing(null)
+    setStatus('PC UNPAIRED')
+    setTimeout(() => setStatus('READY'), 1800)
+  }
+
   const handleClearMemory = () => {
     if (!window.confirm('Clear all JARVIS conversation memory on this browser?')) return
     clearMemory()
@@ -211,8 +235,20 @@ function App() {
               <label className="memory-button" title="Load TXT, CSV or JSON"><input type="file" accept=".txt,.csv,.json,text/plain,text/csv,application/json" onChange={handleDocument} hidden /> DOC</label>
               <button className="memory-button" onClick={() => setShowMemory((value) => !value)} type="button">MEMORY <span>{messages.length}</span></button>
               <button className="memory-button" onClick={() => setShowReminders((value) => !value)} type="button">TASKS <span>{reminders.filter((item) => !item.done).length}</span></button>
+              <button className="memory-button" onClick={handleStartPairing} type="button" disabled={pairingBusy}>{pairing ? 'PC PAIRED' : 'PAIR PC'}</button>
             </div>
           </header>
+
+          {pairing && (
+            <div className="memory-strip pairing-strip">
+              <div>
+                <strong>{pairing.deviceName ? 'PC PAIRED' : 'PAIR YOUR PC'}</strong>
+                <span>{pairing.deviceName ? pairing.deviceName : 'Enter this code in your Windows PC Agent'}</span>
+                {!pairing.deviceName && <b className="pair-code">{pairing.code}</b>}
+              </div>
+              <button type="button" onClick={pairing.deviceName ? handleUnpair : handleStartPairing}>{pairing.deviceName ? 'UNPAIR' : 'NEW CODE'}</button>
+            </div>
+          )}
 
           {showReminders && (
             <div className="memory-strip">
