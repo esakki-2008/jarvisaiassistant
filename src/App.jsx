@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { askJarvis } from './services/ai'
+import { askJarvis, routeJarvis } from './services/ai'
 import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
 import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
@@ -157,7 +157,6 @@ function App() {
         if (!pcOnline && !pairing) {
           throw new Error('No PC is paired. Click PAIR PC first, then pair your Windows PC.')
         }
-
         setStatus('PC ACTION')
         const result = await executePcAction(pcAction.action, pcAction.value)
         addAssistantMessage(result)
@@ -165,10 +164,33 @@ function App() {
         else setStatus('COMMAND QUEUED')
       } else {
         const context = documentContext ? '\\n\\nDOCUMENT: ' + documentContext.name + '\\n' + documentContext.text : ''
-        const reply = await askJarvis(message, history.concat(context ? [{ role: 'user', content: 'Use this document as context for the next request:\\n' + context }] : []))
-        setMessages((current) => [...current, { role: 'assistant', content: reply }])
-        setStatus('READY')
-        speak(reply)
+        const routed = await routeJarvis(message, history, Boolean(documentContext))
+
+        if (routed.tool === 'pc') {
+          if (!pcOnline && !pairing) throw new Error('No PC is paired. Click PAIR PC first, then pair your Windows PC.')
+          if (!routed.action || routed.value === undefined) throw new Error('JARVIS could not determine the PC action.')
+          setStatus('PC ACTION')
+          const result = await executePcAction(routed.action, routed.value)
+          addAssistantMessage(result)
+          if (pcOnline) setPcOnline(true)
+          else setStatus('COMMAND QUEUED')
+        } else if (routed.tool === 'memory' && routed.action === 'save' && routed.value) {
+          saveFact(routed.value)
+          addAssistantMessage("I'll remember that: " + routed.value)
+          setStatus('MEMORY SAVED')
+        } else if (routed.tool === 'memory' && routed.action === 'recall') {
+          const facts = loadFacts()
+          addAssistantMessage(facts.length ? 'I remember:\\n• ' + facts.join('\\n• ') : 'I do not have any saved facts yet.')
+          setStatus('MEMORY READY')
+        } else {
+          const prompt = routed.tool === 'search'
+            ? 'Answer the user using current web-search-style reasoning. If you cannot browse live data, clearly say so. User request: ' + message
+            : message
+          const reply = await askJarvis(prompt, history.concat(context ? [{ role: 'user', content: 'Use this document as context for the next request:\\n' + context }] : []))
+          setMessages((current) => [...current, { role: 'assistant', content: reply }])
+          setStatus('READY')
+          speak(reply)
+        }
       }
     } catch (error) {
       setMessages((current) => [...current, { role: 'assistant', content: error.message }])
