@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { askJarvis } from './services/ai'
 import VoiceOrb from './components/VoiceOrb'
-import { clearMemory, loadMemory, saveMemory } from './services/memory'
+import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
 import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
 
 const rings = [
@@ -20,6 +20,7 @@ function App() {
   const [showMemory, setShowMemory] = useState(false)
   const [pcOnline, setPcOnline] = useState(false)
   const [listening, setListening] = useState(false)
+  const [reminders, setReminders] = useState(() => { try { return JSON.parse(localStorage.getItem('jarvis-reminders-v1') || '[]') } catch { return [] } })
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -31,6 +32,19 @@ function App() {
   useEffect(() => {
     saveMemory(messages)
   }, [messages])
+
+  useEffect(() => { localStorage.setItem('jarvis-reminders-v1', JSON.stringify(reminders)) }, [reminders])
+
+  useEffect(() => {
+    const check = () => {
+      const due = reminders.filter((item) => !item.done && item.at <= Date.now())
+      if (!due.length) return
+      due.forEach((item) => { const text = 'Reminder: ' + item.text; setMessages((current) => [...current, { role: 'assistant', content: text }]); speak(text); if ('Notification' in window && Notification.permission === 'granted') new Notification('JARVIS Reminder', { body: item.text }) })
+      setReminders((current) => current.map((item) => due.some((d) => d.id === item.id) ? { ...item, done: true } : item))
+      setStatus('REMINDER DUE'); setTimeout(() => setStatus('READY'), 3000)
+    }
+    check(); const timer = setInterval(check, 1000); return () => clearInterval(timer)
+  }, [reminders])
 
   useEffect(() => {
     let active = true
@@ -61,6 +75,22 @@ function App() {
     }
   }
 
+  const parseReminder = (text) => {
+    if (!/\b(remind me|set a reminder|reminder)\b/i.test(text)) return null
+    const inMatch = text.match(/\bin\s+(\d+)\s+(minute|minutes|hour|hours|day|days)\b/i)
+    let at = null
+    if (inMatch) {
+      const amount = Number(inMatch[1]); const unit = inMatch[2].toLowerCase()
+      at = Date.now() + (unit.startsWith('minute') ? amount * 60000 : unit.startsWith('hour') ? amount * 3600000 : amount * 86400000)
+    } else {
+      const m = text.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
+      if (m) { let h = Number(m[1]); const min = Number(m[2] || 0); if (m[3]?.toLowerCase() === 'pm' && h < 12) h += 12; if (m[3]?.toLowerCase() === 'am' && h === 12) h = 0; const d = new Date(); d.setHours(h, min, 0, 0); if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1); at = d.getTime() }
+    }
+    if (!at) return null
+    const task = text.replace(/^(?:jarvis[, ]*)?/i, '').replace(/remind me to|set a reminder to|reminder to/i, '').replace(/\bin\s+\d+\s+(?:minute|minutes|hour|hours|day|days)\b/i, '').replace(/\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?/i, '').trim()
+    return task ? { text: task, at } : null
+  }
+
   const addAssistantMessage = (content) => {
     setMessages((current) => [...current, { role: 'assistant', content }])
     speak(content)
@@ -79,6 +109,19 @@ function App() {
     setStatus('THINKING')
 
     try {
+      const reminder = parseReminder(message)
+      if (reminder) {
+        if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission()
+        setReminders((current) => [...current, { id: Date.now(), ...reminder, done: false }])
+        addAssistantMessage('Reminder set for ' + new Date(reminder.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) + ': ' + reminder.text)
+        setStatus('REMINDER SET')
+        return
+      }
+
+      const rememberMatch = message.match(/^(?:jarvis[, ]*)?(?:remember|save this|remember that)\s+(.+)$/i)
+      if (rememberMatch) { saveFact(rememberMatch[1]); addAssistantMessage("I'll remember that: " + rememberMatch[1]); setStatus('MEMORY SAVED'); return }
+      if (/^(?:what do you remember|show my memories|my memories)$/i.test(message)) { const facts = loadFacts(); addAssistantMessage(facts.length ? 'I remember:\n• ' + facts.join('\n• ') : 'I do not have any saved facts yet.'); setStatus('MEMORY READY'); return }
+
       const pcAction = detectPcAction(message)
 
       if (pcAction) {
