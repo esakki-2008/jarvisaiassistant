@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     }
 
     const apiKey = process.env.OPENROUTER_API_KEY
-    const model = process.env.OPENROUTER_MODEL || 'openrouter/free'
+    const models = [process.env.OPENROUTER_MODEL, 'openrouter/free'].filter(Boolean)
 
     if (!apiKey) {
       return res.status(503).json({
@@ -46,7 +46,10 @@ export default async function handler(req, res) {
       { role: 'user', content: message },
     ]
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    let response
+    let data
+    for (const model of [...new Set(models)]) {
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,10 +63,11 @@ export default async function handler(req, res) {
         temperature: 0.7,
       }),
     })
+    data = await response.json().catch(() => ({}))
+    if (response.ok) break
+    }
 
-    const data = await response.json().catch(() => ({}))
-
-    if (!response.ok) {
+    if (!response?.ok) {
       const providerError =
         data?.error?.message ||
         (typeof data?.error === 'string' ? data.error : '') ||
