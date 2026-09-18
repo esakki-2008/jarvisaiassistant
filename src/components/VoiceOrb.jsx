@@ -51,7 +51,7 @@ export default function VoiceOrb({ onTranscript }) {
   return (
     <button
       type="button"
-      className={`voice-orb ${active ? 'is-listening' : ''}`}
+      className={`voice-orb ${active ? 'is-listening' : 'is-muted'}`}
       onClick={toggleListening}
       aria-label={active ? 'Stop listening' : 'Activate JARVIS voice input'}
       title={supported ? (active ? 'Stop listening' : 'Activate voice') : 'Voice input is not supported by this browser'}
