@@ -64,3 +64,12 @@
 @media (prefers-reduced-motion: reduce) {
   .voice-orb *, .voice-orb::before, .voice-orb::after { animation: none !important; }
 }
+
+
+/* Central reactor voice state */
+.reactor-stage.is-listening .ambient-glow { background: radial-gradient(circle, rgba(255, 35, 35, .28) 0, rgba(255, 35, 35, .11) 34%, transparent 70%); filter: blur(8px); animation: reactor-red-pulse 1s ease-in-out infinite; }
+.reactor-stage.is-listening .core-name { color: #ffecec; text-shadow: 0 0 12px rgba(255, 60, 60, .9), 0 0 32px rgba(255, 30, 30, .55); }
+.reactor-stage.is-listening .core-halo { border-color: rgba(255, 65, 65, .8) !important; box-shadow: 0 0 30px rgba(255, 35, 35, .5), inset 0 0 22px rgba(255, 35, 35, .18) !important; }
+.reactor-stage.is-listening .core-line { background: rgba(255, 65, 65, .9) !important; box-shadow: 0 0 14px rgba(255, 35, 35, .8) !important; }
+.reactor-stage.is-listening .hud-ring { border-color: rgba(255, 60, 60, .42); filter: drop-shadow(0 0 8px rgba(255, 30, 30, .32)); }
+@keyframes reactor-red-pulse { 0%, 100% { transform: scale(.92); opacity: .72; } 50% { transform: scale(1.08); opacity: 1; } }
