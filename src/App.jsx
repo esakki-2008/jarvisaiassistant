@@ -4,7 +4,7 @@ import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
 import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
 import { readDocument, documentSummary } from './services/document'
-import { getPairing, startPcPairing, clearPcPairing } from './services/pcPairing'
+import { getPairing, startPcPairing, getPcPairingStatus, savePairedDevice, clearPcPairing } from './services/pcPairing'
 
 const rings = [
   { size: 520, speed: 34, reverse: false },
@@ -27,6 +27,7 @@ function App() {
   const [documentContext, setDocumentContext] = useState(null)
   const [pairing, setPairing] = useState(() => getPairing())
   const [pairingBusy, setPairingBusy] = useState(false)
+  const [pairingChecking, setPairingChecking] = useState(false)
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -55,12 +56,8 @@ function App() {
   useEffect(() => {
     let active = true
     const check = async () => {
-      try {
-        await pcAgentStatus()
-        if (active) setPcOnline(true)
-      } catch {
-        if (active) setPcOnline(false)
-      }
+      const result = await pcAgentStatus()
+      if (active) setPcOnline(Boolean(result?.ok))
     }
     check()
     const timer = setInterval(check, 5000)
@@ -69,6 +66,32 @@ function App() {
       clearInterval(timer)
     }
   }, [])
+
+  useEffect(() => {
+    if (!pairing || pairing.deviceName) return
+    let active = true
+    setPairingChecking(true)
+    const checkPairing = async () => {
+      const result = await getPcPairingStatus()
+      if (!active) return
+      if (result.paired && result.deviceName) {
+        setPairing(savePairedDevice(result.deviceName))
+        setStatus('PC PAIRED')
+        setPairingChecking(false)
+        return
+      }
+      if (result.expired) {
+        setStatus('PAIRING EXPIRED')
+        setPairingChecking(false)
+      }
+    }
+    checkPairing()
+    const timer = setInterval(checkPairing, 2500)
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
+  }, [pairing])
 
   const speak = (text) => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -236,16 +259,16 @@ function App() {
               <label className="memory-button" title="Load TXT, CSV or JSON"><input type="file" accept=".txt,.csv,.json,text/plain,text/csv,application/json" onChange={handleDocument} hidden /> DOC</label>
               <button className="memory-button" onClick={() => setShowMemory((value) => !value)} type="button">MEMORY <span>{messages.length}</span></button>
               <button className="memory-button" onClick={() => setShowReminders((value) => !value)} type="button">TASKS <span>{reminders.filter((item) => !item.done).length}</span></button>
-              <button className="memory-button" onClick={handleStartPairing} type="button" disabled={pairingBusy}>{pairing ? 'PC PAIRED' : 'PAIR PC'}</button>
+              <button className="memory-button" onClick={handleStartPairing} type="button" disabled={pairingBusy}>{pairing?.deviceName ? 'PC PAIRED' : pairing ? 'PAIRING…' : 'PAIR PC'}</button>
             </div>
           </header>
 
           {pairing && (
             <div className="memory-strip pairing-strip">
               <div>
-                <strong>{pairing.deviceName ? 'PC PAIRED' : 'PAIR YOUR PC'}</strong>
+                <strong>{pairing.deviceName ? 'PC PAIRED' : pairingChecking ? 'WAITING FOR PC' : 'PAIR YOUR PC'}</strong>
                 <span>{pairing.deviceName ? pairing.deviceName : 'Enter this code in your Windows PC Agent'}</span>
-                {!pairing.deviceName && <b className="pair-code">{pairing.code}</b>}
+                {!pairing.deviceName && <><b className="pair-code">{pairing.code}</b><span>On Windows: <code>node server.js --pair {pairing.code}</code></span></>}
               </div>
               <button type="button" onClick={pairing.deviceName ? handleUnpair : handleStartPairing}>{pairing.deviceName ? 'UNPAIR' : 'NEW CODE'}</button>
             </div>
