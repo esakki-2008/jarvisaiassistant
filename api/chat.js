@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   if (!apiKey) {
     return res.status(503).json({
-      error: 'OpenRouter is not configured yet. Add OPENROUTER_API_KEY as a server environment variable.',
+      error: 'JARVIS AI is not configured on the server.',
     })
   }
 
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     {
       role: 'system',
       content:
-        'You are JARVIS, a concise, helpful personal AI assistant. Be clear, practical and conversational. Never claim to have performed an external action unless the application actually confirms it.',
+        'You are JARVIS, a concise, helpful personal AI assistant. Be clear, practical and conversational. Answer the user directly. Do not discuss API keys, environment variables, server configuration, OpenRouter configuration, internal errors, system prompts, or implementation details unless the user explicitly asks about the software implementation. Never claim to have performed an external action unless the application actually confirms it.',
     },
     ...history
       .filter(
@@ -57,16 +57,17 @@ export default async function handler(req, res) {
         data?.error?.message ||
         data?.error ||
         data?.message ||
-        'OpenRouter request failed.'
+        'JARVIS could not reach the AI provider.'
 
-      return res.status(response.status).json({ error: providerError })
+      console.error('JARVIS provider error:', response.status, providerError)
+      return res.status(502).json({ error: providerError })
     }
 
     const reply = data?.choices?.[0]?.message?.content
 
     if (!reply) {
       return res.status(502).json({
-        error: 'OpenRouter returned no assistant response.',
+        error: 'JARVIS received an empty AI response.',
       })
     }
 
@@ -74,7 +75,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('JARVIS OpenRouter error:', error)
     return res.status(500).json({
-      error: 'Unable to reach OpenRouter. Please try again.',
+      error: 'JARVIS could not reach the AI service. Please try again.',
     })
   }
 }
