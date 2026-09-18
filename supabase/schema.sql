@@ -45,3 +45,25 @@ revoke all on public.pc_commands from anon, authenticated;
 grant usage on schema public to service_role;
 grant all on public.pc_devices to service_role;
 grant all on public.pc_commands to service_role;
+
+
+create table if not exists public.pc_pairing_requests (
+  id uuid primary key default gen_random_uuid(),
+  code_hash text not null,
+  client_token_hash text,
+  expires_at timestamptz not null,
+  used boolean not null default false,
+  used_at timestamptz,
+  device_id uuid references public.pc_devices(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists pc_pairing_requests_expiry_idx
+  on public.pc_pairing_requests(expires_at);
+
+create index if not exists pc_pairing_requests_client_token_idx
+  on public.pc_pairing_requests(client_token_hash);
+
+alter table public.pc_pairing_requests enable row level security;
+revoke all on public.pc_pairing_requests from anon, authenticated;
+grant all on public.pc_pairing_requests to service_role;
