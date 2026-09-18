@@ -36,6 +36,23 @@ export async function completePcPairing(pairingId, code, deviceName) {
   return post('/api/pc-pair-complete', { pairingId, code, deviceName })
 }
 
+export async function getPcPairingStatus() {
+  const token = getPcClientToken()
+  if (!token) return { paired: false, expired: false, deviceName: null }
+  try {
+    return await post('/api/pc-pair-status', {}, token)
+  } catch {
+    return { paired: false, expired: false, deviceName: null }
+  }
+}
+
+export function savePairedDevice(deviceName) {
+  const current = getPairing() || {}
+  const next = { ...current, deviceName }
+  window.localStorage.setItem(PAIRING_KEY, JSON.stringify(next))
+  return next
+}
+
 export function clearPcPairing() {
   if (typeof window === 'undefined') return
   window.localStorage.removeItem(CLIENT_TOKEN_KEY)
