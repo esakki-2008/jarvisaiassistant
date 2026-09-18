@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { askJarvis, askJarvisWithMemory, routeJarvis, searchJarvis, analyzeImage } from './services/ai'
+import { planJarvisAgent } from './services/agent'
 import { loadCloudMemories, saveCloudMemory } from './services/cloudMemory'
 import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
@@ -33,6 +34,7 @@ function App() {
   const [showDocuments, setShowDocuments] = useState(false)
   const [visionFile, setVisionFile] = useState(null)
   const [mode, setMode] = useState('CORE')
+  const [agentPlan, setAgentPlan] = useState(null)
   const [pairing, setPairing] = useState(() => getPairing())
   const [pairingBusy, setPairingBusy] = useState(false)
   const [pairingChecking, setPairingChecking] = useState(false)
@@ -183,6 +185,18 @@ function App() {
     setStatus('THINKING')
 
     try {
+      const agentIntent = /\b(make a plan|plan this|break this down|agent mode|create a plan|multi[- ]step)\b/i.test(message)
+      if (agentIntent) {
+        const result = await planJarvisAgent(message, 5)
+        setAgentPlan(result)
+        const planText = result.steps?.length
+          ? 'Agent plan ready:\\n' + result.steps.map((step, i) => (i + 1) + '. [' + step.tool + '] ' + step.input).join('\\n') + (result.summary ? '\\n\\n' + result.summary : '')
+          : 'I could not create a safe executable plan for that goal.'
+        addAssistantMessage(planText)
+        setStatus('AGENT PLAN READY')
+        return
+      }
+
       if (visionFile) {
         const question = message || 'Analyze the image.'
         const reply = await analyzeImage(visionFile, question)
@@ -463,6 +477,16 @@ function App() {
                 {!mobilePairing.deviceName && <><b className="pair-code">{mobilePairing.code}</b><span>On Android: open J.A.R.V.I.S Companion and enter this 6-digit code.</span></>}
               </div>
               <button type="button" onClick={mobilePairing.deviceName ? handleUnpairMobile : handleStartMobilePairing}>{mobilePairing.deviceName ? 'UNPAIR' : 'NEW CODE'}</button>
+            </div>
+          )}
+
+          {agentPlan && (
+            <div className="memory-strip">
+              <div>
+                <strong>AGENT PLAN</strong>
+                <span>{agentPlan.steps?.length || 0} safe steps • {agentPlan.status || 'planned'}</span>
+              </div>
+              <button type="button" onClick={() => setAgentPlan(null)}>CLOSE</button>
             </div>
           )}
 
