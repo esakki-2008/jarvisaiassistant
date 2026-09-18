@@ -5,6 +5,7 @@ import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
 import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
 import { readDocument, documentSummary } from './services/document'
+import { addDocumentToLibrary, loadDocumentLibrary, removeDocumentFromLibrary, retrieveRelevantChunks, documentLibrarySummary } from './services/knowledge'
 import { getPairing, startPcPairing, getPcPairingStatus, savePairedDevice, clearPcPairing } from './services/pcPairing'
 import { detectMobileCall, executeMobileCall, getMobilePairing, startMobilePairing, getMobilePairingStatus, saveMobileDevice, clearMobilePairing } from './services/mobileAgent'
 
@@ -28,6 +29,8 @@ function App() {
   const [reminders, setReminders] = useState(() => { try { return JSON.parse(localStorage.getItem('jarvis-reminders-v1') || '[]') } catch { return [] } })
   const [showReminders, setShowReminders] = useState(false)
   const [documentContext, setDocumentContext] = useState(null)
+  const [documentLibrary, setDocumentLibrary] = useState(() => loadDocumentLibrary())
+  const [showDocuments, setShowDocuments] = useState(false)
   const [pairing, setPairing] = useState(() => getPairing())
   const [pairingBusy, setPairingBusy] = useState(false)
   const [pairingChecking, setPairingChecking] = useState(false)
@@ -50,6 +53,12 @@ function App() {
     let active = true
     loadCloudMemories().then((items) => { if (active) setCloudMemories(items) }).catch(() => {})
     return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    const saved = loadDocumentLibrary()
+    setDocumentLibrary(saved)
+    if (saved.length && !documentContext) setDocumentContext(saved[saved.length - 1])
   }, [])
 
   useEffect(() => { localStorage.setItem('jarvis-reminders-v1', JSON.stringify(reminders)) }, [reminders])
@@ -207,8 +216,13 @@ function App() {
         if (pcOnline) setPcOnline(true)
         else setStatus('COMMAND QUEUED')
       } else {
-        const context = documentContext ? '\\n\\nDOCUMENT: ' + documentContext.name + '\\n' + documentContext.text : ''
-        const routed = await routeJarvis(message, history, Boolean(documentContext))
+        const relevant = retrieveRelevantChunks(message, documentLibrary, 6)
+        const activeFallback = documentContext?.chunks?.slice(0, 6) || []
+        const ragChunks = relevant.length ? relevant : activeFallback
+        const context = ragChunks.length
+          ? '\\n\\nDOCUMENT KNOWLEDGE CONTEXT:\\n' + ragChunks.map((chunk) => '[' + chunk.documentName + ' | section ' + (chunk.index + 1) + ']\\n' + chunk.text).join('\\n\\n')
+          : ''
+        const routed = await routeJarvis(message, history, Boolean(documentLibrary.length))
 
         if (routed.tool === 'mobile') {
           if (!mobilePairing?.deviceName) throw new Error('No phone is paired. Click PHONE and enter the 6-digit code in the Android Companion.')
@@ -243,7 +257,7 @@ function App() {
           addAssistantMessage(lines.join('\n') || 'I could not find a useful result for that search.')
           setStatus('SEARCH READY')
         } else {
-          const reply = await askJarvisWithMemory(message, history.concat(context ? [{ role: 'user', content: 'Use this document as context for the next request:\\n' + context }] : []), cloudMemories)
+          const reply = await askJarvisWithMemory(message, history.concat(context ? [{ role: 'system', content: 'Answer using the following retrieved document sections. If the answer is not supported by them, say that the documents do not contain enough information. Do not invent document facts.\\n' + context }] : []), cloudMemories)
           setMessages((current) => [...current, { role: 'assistant', content: reply }])
           setStatus('READY')
           speak(reply)
@@ -255,7 +269,7 @@ function App() {
     } finally {
       setBusy(false)
     }
-  }, [busy, input, messages, pcOnline, pairing, mobilePairing, documentContext, cloudMemories])
+  }, [busy, input, messages, pcOnline, pairing, mobilePairing, documentContext, documentLibrary, cloudMemories])
 
   const handleVoiceTranscript = useCallback((transcript) => {
     setStatus('VOICE INPUT')
@@ -268,12 +282,35 @@ function App() {
     event.target.value = ''
     if (!file) return
     try {
+      setStatus('READING DOCUMENT')
       const text = await readDocument(file)
       const summary = documentSummary(text)
-      setDocumentContext({ name: file.name, text })
-      setMessages((current) => [...current, { role: 'assistant', content: 'Document loaded: ' + file.name + '\\n' + summary.words + ' words, ' + summary.lines + ' lines. You can now ask JARVIS about its contents.' }])
-      setStatus('DOCUMENT READY')
+      const saved = addDocumentToLibrary(file, text)
+      setDocumentLibrary(saved.documents)
+      setDocumentContext(saved.document)
+      setShowDocuments(true)
+      setMessages((current) => [...current, { role: 'assistant', content: 'Knowledge added: ' + file.name + '\\n' + summary.words + ' words, ' + saved.document.chunks.length + ' searchable sections. JARVIS can now retrieve relevant sections when you ask questions.' }])
+      setStatus('KNOWLEDGE READY')
     } catch (error) { setMessages((current) => [...current, { role: 'assistant', content: error.message }]); setStatus('DOCUMENT ERROR') }
+  }
+
+  const handleRemoveDocument = (id) => {
+    const next = removeDocumentFromLibrary(id)
+    setDocumentLibrary(next)
+    if (documentContext?.id === id) setDocumentContext(next[next.length - 1] || null)
+    setStatus('DOCUMENT REMOVED')
+    setTimeout(() => setStatus('READY'), 1500)
+  }
+
+  const handleClearDocuments = () => {
+    if (!window.confirm('Clear the JARVIS document library?')) return
+    const next = removeDocumentFromLibrary('__clear_all__')
+    localStorage.removeItem('jarvis-document-library-v1')
+    setDocumentLibrary([])
+    setDocumentContext(null)
+    setShowDocuments(false)
+    setStatus('KNOWLEDGE CLEARED')
+    setTimeout(() => setStatus('READY'), 1500)
   }
 
   const handleStartPairing = async () => {
@@ -360,7 +397,8 @@ function App() {
           <header>
             <div><strong>J.A.R.V.I.S</strong><small>{status}</small></div>
             <div className="header-actions">
-              <label className="memory-button" title="Load TXT, CSV or JSON"><input type="file" accept=".txt,.csv,.json,text/plain,text/csv,application/json" onChange={handleDocument} hidden /> DOC</label>
+              <label className="memory-button" title="Add TXT, CSV, JSON, PDF or DOCX"><input type="file" accept=".txt,.csv,.json,.pdf,.docx,text/plain,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleDocument} hidden /> DOC</label>
+              <button className="memory-button" onClick={() => setShowDocuments((value) => !value)} type="button">DOCS <span>{documentLibrary.length}</span></button>
               <button className="memory-button" onClick={() => setShowMemory((value) => !value)} type="button">MEMORY <span>{messages.length}</span></button>
               <button className="memory-button" onClick={() => setShowReminders((value) => !value)} type="button">TASKS <span>{reminders.filter((item) => !item.done).length}</span></button>
               <button className="memory-button" onClick={handleStartPairing} type="button" disabled={pairingBusy}>{pairing?.deviceName ? 'PC PAIRED' : pairing ? 'PAIRING…' : 'PAIR PC'}</button>
@@ -388,6 +426,23 @@ function App() {
                 {!mobilePairing.deviceName && <><b className="pair-code">{mobilePairing.code}</b><span>On Android: open J.A.R.V.I.S Companion and enter this 6-digit code.</span></>}
               </div>
               <button type="button" onClick={mobilePairing.deviceName ? handleUnpairMobile : handleStartMobilePairing}>{mobilePairing.deviceName ? 'UNPAIR' : 'NEW CODE'}</button>
+            </div>
+          )}
+
+          {showDocuments && (
+            <div className="memory-strip document-library">
+              <div>
+                <strong>KNOWLEDGE LIBRARY</strong>
+                <span>{documentLibrarySummary(documentLibrary).documents} documents • {documentLibrarySummary(documentLibrary).chunks} sections • {documentLibrarySummary(documentLibrary).words} words</span>
+                {documentLibrary.map((doc) => (
+                  <div key={doc.id} className="document-row">
+                    <span>{doc.name}{documentContext?.id === doc.id ? ' • ACTIVE' : ''}</span>
+                    <button type="button" onClick={() => setDocumentContext(doc)}>USE</button>
+                    <button type="button" onClick={() => handleRemoveDocument(doc.id)}>REMOVE</button>
+                  </div>
+                ))}
+              </div>
+              {documentLibrary.length > 0 && <button type="button" onClick={handleClearDocuments}>CLEAR ALL</button>}
             </div>
           )}
 
