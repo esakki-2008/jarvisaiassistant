@@ -41,6 +41,7 @@ class MainActivity : Activity() {
     private val cloudUrl="https://jarvis-ai-assistant-jet-ten.vercel.app"
     private val cyan=Color.rgb(0,229,255); private val bg=Color.rgb(2,8,12)
     private lateinit var status:TextView; private lateinit var reactor:ReactorView
+    private lateinit var lockOverlay:FrameLayout
     private lateinit var chat:LinearLayout; private lateinit var input:EditText; private lateinit var pairing:LinearLayout
     private val REQ_FILE=61; private val REQ_CAMERA=62; private val REQ_CALENDAR=63
     private var pendingCameraUri:Uri?=null
@@ -53,6 +54,7 @@ class MainActivity : Activity() {
         window.statusBarColor=bg;window.navigationBarColor=bg;buildUi();requestPermissionsIfNeeded();handleIncomingShare(intent)
         tts=TextToSpeech(this){tts?.language=Locale.US}
         if(prefs.getString("deviceToken",null)!=null){showPaired();startPolling()}else{pairing.visibility=View.VISIBLE;status.text="AWAITING PAIRING"}
+        lockJarvis()
     }
 
     private fun buildUi(){
@@ -94,7 +96,16 @@ class MainActivity : Activity() {
         all.addView(features,LinearLayout.LayoutParams(-1,dp(48)))
 all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
         all.addView(TextView(this).apply{text="VOICE  •  AI CHAT  •  PHONE  •  PC";gravity=Gravity.CENTER;textSize=8f;letterSpacing=.12f;setTextColor(Color.rgb(45,80,90))},LinearLayout.LayoutParams(-1,dp(22)))
-        root.addView(all,FrameLayout.LayoutParams(-1,-1));setContentView(root)
+        root.addView(all,FrameLayout.LayoutParams(-1,-1))
+        lockOverlay=FrameLayout(this).apply{setBackgroundColor(Color.rgb(2,8,12));visibility=View.GONE}
+        val lockText=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER}
+        lockText.addView(TextView(this).apply{text="J.A.R.V.I.S";gravity=Gravity.CENTER;textSize=26f;letterSpacing=.28f;setTextColor(cyan);typeface=Typeface.DEFAULT_BOLD})
+        lockText.addView(TextView(this).apply{text="PERSONAL FACE LOCK";gravity=Gravity.CENTER;textSize=10f;letterSpacing=.18f;setTextColor(Color.rgb(0,125,150));setPadding(0,dp(10),0,dp(18))})
+        val unlock=TextView(this).apply{text="UNLOCK WITH FACE / BIOMETRIC";gravity=Gravity.CENTER;setTextColor(Color.BLACK);background=buttonBg();setPadding(dp(18),0,dp(18),0);setOnClickListener{authenticate()}}
+        lockText.addView(unlock,LinearLayout.LayoutParams(-2,dp(48)))
+        lockOverlay.addView(lockText,FrameLayout.LayoutParams(-1,-1))
+        root.addView(lockOverlay,FrameLayout.LayoutParams(-1,-1))
+        setContentView(root)
     }
 
     private fun sendText(){val text=input.text.toString().trim();if(text.isEmpty())return;input.setText("");addBubble("YOU",text,false);askJarvis(text)}
@@ -112,7 +123,7 @@ all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
             override fun onAuthenticationSucceeded(r:BiometricPrompt.AuthenticationResult){secureUntil=System.currentTimeMillis()+SECURE_WINDOW_MS;status.text="SECURE • 10 MIN";continuation()}
             override fun onAuthenticationError(code:Int,msg:CharSequence){status.text="SECURITY LOCKED";addBubble("JARVIS","Authentication cancelled. Protected action blocked.",true)}
             override fun onAuthenticationFailed(){status.text="AUTHENTICATION FAILED"}
-        }).authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("JARVIS Secure Core").setSubtitle("Authenticate to authorize: "+action).setAllowedAuthenticators(authenticators).build())
+        }).authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("JARVIS Personal Face Lock").setSubtitle("Use your enrolled face or biometric to authorize: "+action).setAllowedAuthenticators(authenticators).build())
     }
     private fun openWhatsApp(message:String){
         val m=message.trim()
@@ -167,6 +178,8 @@ all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
         recognizer?.startListening(i)
     }
 
+    private fun lockJarvis(){secureUntil=0L;if(::lockOverlay.isInitialized){lockOverlay.visibility=View.VISIBLE;status.text="PERSONAL LOCK ACTIVE";reactor.mode=ReactorView.Mode.ERROR}}
+    override fun onResume(){super.onResume();if(::lockOverlay.isInitialized && secureUntil<System.currentTimeMillis()){lockJarvis()}}
     private fun openNotificationSettings(){
         try{startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));status.text="NOTIFICATION CORE"}catch(_:Exception){status.text="NOTIFICATION SETTINGS UNAVAILABLE"}
     }
@@ -223,7 +236,7 @@ all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
         val manager=BiometricManager.from(this)
         if(manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)!=BiometricManager.BIOMETRIC_SUCCESS){addBubble("JARVIS","Biometric/device security is not available on this phone.",true);return}
         BiometricPrompt(this,executor,object:BiometricPrompt.AuthenticationCallback(){
-            override fun onAuthenticationSucceeded(r:BiometricPrompt.AuthenticationResult){secureUntil=System.currentTimeMillis()+SECURE_WINDOW_MS;addBubble("JARVIS","Secure session unlocked for 10 minutes.",true);status.text="SECURE • 10 MIN"}
+            override fun onAuthenticationSucceeded(r:BiometricPrompt.AuthenticationResult){secureUntil=System.currentTimeMillis()+SECURE_WINDOW_MS;if(::lockOverlay.isInitialized)lockOverlay.visibility=View.GONE;addBubble("JARVIS","Personal face/biometric lock unlocked for 10 minutes.",true);status.text="SECURE • 10 MIN"}
             override fun onAuthenticationError(code:Int,msg:CharSequence){status.text="SECURITY LOCKED"}
         }).authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("JARVIS Secure Core").setSubtitle("Authenticate to access protected actions").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL).build())
     }
