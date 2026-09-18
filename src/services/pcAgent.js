@@ -1,20 +1,40 @@
-const PC_AGENT_URL = 'http://127.0.0.1:8787'
+const LOCAL_PC_AGENT_URL = 'http://127.0.0.1:8787'
+const REMOTE_PC_API = '/api/pc-command'
+
+async function jsonFetch(url, options = {}) {
+  const response = await fetch(url, options)
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data?.error || 'JARVIS PC service request failed.')
+  return data
+}
 
 export async function pcAgentStatus() {
-  const response = await fetch(`${PC_AGENT_URL}/status`)
-  if (!response.ok) throw new Error('JARVIS PC Agent is offline.')
-  return response.json()
+  try {
+    const response = await fetch(`${LOCAL_PC_AGENT_URL}/status`)
+    if (!response.ok) throw new Error()
+    return response.json()
+  } catch {
+    return { ok: false, agent: 'JARVIS PC Agent', remote: false }
+  }
 }
 
 export async function executePcAction(action, value) {
-  const response = await fetch(`${PC_AGENT_URL}/execute`, {
+  const local = await pcAgentStatus()
+  if (local.ok) {
+    const data = await jsonFetch(`${LOCAL_PC_AGENT_URL}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, value }),
+    })
+    return data.message
+  }
+
+  const data = await jsonFetch(REMOTE_PC_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, value }),
   })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok || !data.ok) throw new Error(data?.error || 'PC action failed.')
-  return data.message
+  return data.message || 'Command queued for your paired PC.'
 }
 
 export function detectPcAction(message) {
