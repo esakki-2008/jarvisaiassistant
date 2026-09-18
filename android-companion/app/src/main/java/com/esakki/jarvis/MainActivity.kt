@@ -81,8 +81,7 @@ class MainActivity : Activity() {
     private fun askJarvis(message:String){
         status.text="JARVIS THINKING";reactor.mode=ReactorView.Mode.WORKING
         executor.execute{try{
-            val arr=history.takeLast(8).joinToString(","){it.toString()}
-            val body=JSONObject().put("message",message).put("history","[$arr]").toString()
+            val body=JSONObject().put("message",message).put("history",org.json.JSONArray(history.takeLast(8).map{it})).toString()
             val d=post("/api/mobile?action=assistant",body,prefs.getString("deviceToken",null))
             val reply=d.optString("reply","How can I help?")
             history.add(JSONObject().put("role","user").put("content",message));history.add(JSONObject().put("role","assistant").put("content",reply))
@@ -110,7 +109,7 @@ class MainActivity : Activity() {
     }
 
     private fun requestPermissionsIfNeeded(){val miss=arrayOf(Manifest.permission.READ_CONTACTS,Manifest.permission.CALL_PHONE,Manifest.permission.RECORD_AUDIO).filter{ContextCompat.checkSelfPermission(this,it)!=PackageManager.PERMISSION_GRANTED};if(miss.isNotEmpty())ActivityCompat.requestPermissions(this,miss.toTypedArray(),42)}
-    private fun pairPhone(code:String){if(!Regex("\\\\d{6}").matches(code)){status.text="ENTER 6-DIGIT CODE";return};status.text="PAIRING...";executor.execute{try{val d=post("/api/mobile?action=pair-complete",JSONObject().put("code",code).put("deviceName",android.os.Build.MODEL).toString(),null);prefs.edit().putString("deviceToken",d.getString("deviceToken")).apply();runOnUiThread{showPaired();startPolling()}}catch(e:Exception){runOnUiThread{status.text="PAIRING FAILED"}}}}
+    private fun pairPhone(code:String){if(!Regex("\\d{6}").matches(code)){status.text="ENTER 6-DIGIT CODE";return};status.text="PAIRING...";executor.execute{try{val d=post("/api/mobile?action=pair-complete",JSONObject().put("code",code).put("deviceName",android.os.Build.MODEL).toString(),null);prefs.edit().putString("deviceToken",d.getString("deviceToken")).apply();runOnUiThread{showPaired();startPolling()}}catch(e:Exception){runOnUiThread{status.text="PAIRING FAILED"}}}}
     private fun showPaired(){pairing.visibility=View.GONE;status.text="JARVIS ONLINE";reactor.mode=ReactorView.Mode.ONLINE}
 
     private fun startPolling(){if(polling)return;polling=true;executor.execute{while(!isFinishing){try{val token=prefs.getString("deviceToken",null)?:break;val d=post("/api/mobile?action=poll","{}",token);if(d.has("command")&&!d.isNull("command"))handleCommand(d.getJSONObject("command"),token)}catch(_:Exception){};try{Thread.sleep(3000)}catch(_:Exception){break}}}}
