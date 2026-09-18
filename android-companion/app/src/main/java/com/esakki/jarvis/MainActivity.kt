@@ -44,6 +44,8 @@ class MainActivity : Activity() {
     private lateinit var chat:LinearLayout; private lateinit var input:EditText; private lateinit var pairing:LinearLayout
     private val REQ_FILE=61; private val REQ_CAMERA=62; private val REQ_CALENDAR=63
     private var pendingCameraUri:Uri?=null
+    private val SECURE_WINDOW_MS=10*60*1000L
+    private var secureUntil=0L
     private var polling=false; private var tts:TextToSpeech?=null; private var recognizer:SpeechRecognizer?=null
     private val history=ArrayList<JSONObject>()
 
@@ -96,6 +98,22 @@ all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
     }
 
     private fun sendText(){val text=input.text.toString().trim();if(text.isEmpty())return;input.setText("");addBubble("YOU",text,false);askJarvis(text)}
+    private fun isSensitive(text:String):Boolean{
+        val x=text.lowercase()
+        return Regex("""\\b(call|phone|whatsapp|message|pc|computer|open app|open website|open url|type|press|click|remember|save memory|camera|photo|file|document|calendar|notification|secure)\\b""").containsMatchIn(x)
+    }
+    private fun requireSecure(action:String,continuation:()->Unit){
+        if(System.currentTimeMillis()<secureUntil){continuation();return}
+        val main=ContextCompat.getMainExecutor(this)
+        val manager=BiometricManager.from(this)
+        val authenticators=BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        if(manager.canAuthenticate(authenticators)!=BiometricManager.BIOMETRIC_SUCCESS){addBubble("JARVIS","Security authentication is unavailable. Protected action blocked: "+action,true);status.text="SECURITY LOCKED";return}
+        BiometricPrompt(this,main,object:BiometricPrompt.AuthenticationCallback(){
+            override fun onAuthenticationSucceeded(r:BiometricPrompt.AuthenticationResult){secureUntil=System.currentTimeMillis()+SECURE_WINDOW_MS;status.text="SECURE • 10 MIN";continuation()}
+            override fun onAuthenticationError(code:Int,msg:CharSequence){status.text="SECURITY LOCKED";addBubble("JARVIS","Authentication cancelled. Protected action blocked.",true)}
+            override fun onAuthenticationFailed(){status.text="AUTHENTICATION FAILED"}
+        }).authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("JARVIS Secure Core").setSubtitle("Authenticate to authorize: "+action).setAllowedAuthenticators(authenticators).build())
+    }
     private fun openWhatsApp(message:String){
         val m=message.trim()
         val phone=Regex("""(?:whatsapp|message)\s+(?:to\s+)?(\+?[0-9][0-9 -]{7,})\s*[:,-]\s*(.+)""",RegexOption.IGNORE_CASE).find(m)
@@ -160,13 +178,17 @@ all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
     }
     override fun onNewIntent(i:Intent?){super.onNewIntent(i);setIntent(i);handleIncomingShare(i)}
     private fun openCamera(){
+        requireSecure("camera vision") {
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED){ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.CAMERA),44);return}
         val i=Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
         if(i.resolveActivity(packageManager)!=null){startActivityForResult(i,REQ_CAMERA)}else status.text="CAMERA UNAVAILABLE"
+        }
     }
     private fun openFilePicker(){
+        requireSecure("file access") {
         val i=Intent(Intent.ACTION_OPEN_DOCUMENT).apply{type="*/*";putExtra(Intent.EXTRA_ALLOW_MULTIPLE,false);addCategory(Intent.CATEGORY_OPENABLE)}
         startActivityForResult(i,REQ_FILE)
+        }
     }
     private fun handleFile(uri:Uri){
         executor.execute{try{
@@ -189,6 +211,7 @@ all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
         }catch(e:Exception){runOnUiThread{addBubble("SYSTEM",e.message?:"Vision failed",true);status.text="VISION ERROR";reactor.mode=ReactorView.Mode.ERROR}}}
     }
     private fun showCalendar(){
+        requireSecure("calendar access") {
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.READ_CALENDAR)!=PackageManager.PERMISSION_GRANTED){ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.READ_CALENDAR),REQ_CALENDAR);return}
         val now=System.currentTimeMillis();val end=now+7L*24*60*60*1000
         val cur=contentResolver.query(android.provider.CalendarContract.Events.CONTENT_URI,arrayOf(android.provider.CalendarContract.Events.TITLE,android.provider.CalendarContract.Events.DTSTART),android.provider.CalendarContract.Events.DTSTART+" BETWEEN ? AND ?",arrayOf(now.toString(),end.toString()),android.provider.CalendarContract.Events.DTSTART+" ASC")
@@ -200,7 +223,7 @@ all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
         val manager=BiometricManager.from(this)
         if(manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)!=BiometricManager.BIOMETRIC_SUCCESS){addBubble("JARVIS","Biometric/device security is not available on this phone.",true);return}
         BiometricPrompt(this,executor,object:BiometricPrompt.AuthenticationCallback(){
-            override fun onAuthenticationSucceeded(r:BiometricPrompt.AuthenticationResult){addBubble("JARVIS","Secure session unlocked.",true);status.text="SECURE"}
+            override fun onAuthenticationSucceeded(r:BiometricPrompt.AuthenticationResult){secureUntil=System.currentTimeMillis()+SECURE_WINDOW_MS;addBubble("JARVIS","Secure session unlocked for 10 minutes.",true);status.text="SECURE • 10 MIN"}
             override fun onAuthenticationError(code:Int,msg:CharSequence){status.text="SECURITY LOCKED"}
         }).authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("JARVIS Secure Core").setSubtitle("Authenticate to access protected actions").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL).build())
     }
@@ -216,7 +239,7 @@ all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
     private fun showPaired(){pairing.visibility=View.GONE;status.text="JARVIS ONLINE";reactor.mode=ReactorView.Mode.ONLINE}
 
     private fun startPolling(){if(polling)return;polling=true;executor.execute{while(!isFinishing){try{val token=prefs.getString("deviceToken",null)?:break;val d=post("/api/mobile?action=poll","{}",token);if(d.has("command")&&!d.isNull("command"))handleCommand(d.getJSONObject("command"),token)}catch(_:Exception){};try{Thread.sleep(3000)}catch(_:Exception){break}}}}
-    private fun handleCommand(c:JSONObject,token:String){val id=c.getString("id");val a=c.getString("action");val v=c.optString("value","");if(a=="call_contact"||a=="call_number")runOnUiThread{confirmCall(id,a,v,token)}}
+    private fun handleCommand(c:JSONObject,token:String){val id=c.getString("id");val a=c.getString("action");val v=c.optString("value","");if(a=="call_contact"||a=="call_number")runOnUiThread{requireSecure("phone call"){confirmCall(id,a,v,token)}}}
     private fun confirmCall(id:String,a:String,v:String,token:String){val n=if(a=="call_number")v else findContactNumber(v);if(n==null){sendResult(id,false,"Contact not found: "+v,token);return};AlertDialog.Builder(this).setTitle("JARVIS PHONE").setMessage("Call "+(if(a=="call_number")n else v)+"?").setNegativeButton("CANCEL"){_,_->sendResult(id,false,"Call cancelled.",token)}.setPositiveButton("CALL"){_,_->if(ContextCompat.checkSelfPermission(this,Manifest.permission.CALL_PHONE)==PackageManager.PERMISSION_GRANTED){startActivity(Intent(Intent.ACTION_CALL,Uri.parse("tel:"+Uri.encode(n))));sendResult(id,true,"Calling "+n+".",token)}}.show()}
     private fun findContactNumber(name:String):String?{if(ContextCompat.checkSelfPermission(this,Manifest.permission.READ_CONTACTS)!=PackageManager.PERMISSION_GRANTED)return null;val c=contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME+" LIKE ?",arrayOf("%"+name+"%"),null)?:return null;c.use{return if(it.moveToFirst())it.getString(0)else null}}
     private fun sendResult(id:String,ok:Boolean,msg:String,token:String){executor.execute{try{val b=JSONObject().put("commandId",id).put("ok",ok);if(ok)b.put("message",msg)else b.put("error",msg);post("/api/mobile?action=result",b.toString(),token)}catch(_:Exception){}}}
