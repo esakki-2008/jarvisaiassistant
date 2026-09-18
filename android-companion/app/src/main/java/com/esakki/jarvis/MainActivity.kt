@@ -8,6 +8,14 @@ import android.content.pm.PackageManager
 import android.graphics.*
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
+import android.provider.Settings
+import android.util.Base64
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.FileProvider
+import android.database.Cursor
+import java.io.ByteArrayOutputStream
+import java.io.File
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.speech.RecognitionListener
@@ -34,6 +42,8 @@ class MainActivity : Activity() {
     private val cyan=Color.rgb(0,229,255); private val bg=Color.rgb(2,8,12)
     private lateinit var status:TextView; private lateinit var reactor:ReactorView
     private lateinit var chat:LinearLayout; private lateinit var input:EditText; private lateinit var pairing:LinearLayout
+    private val REQ_FILE=61; private val REQ_CAMERA=62; private val REQ_CALENDAR=63
+    private var pendingCameraUri:Uri?=null
     private var polling=false; private var tts:TextToSpeech?=null; private var recognizer:SpeechRecognizer?=null
     private val history=ArrayList<JSONObject>()
 
@@ -72,7 +82,14 @@ class MainActivity : Activity() {
         pairing.addView(TextView(this).apply{text="PAIR THIS PHONE";gravity=Gravity.CENTER;setTextColor(cyan);textSize=11f})
         pairing.addView(pairInput,LinearLayout.LayoutParams(-1,dp(45)).apply{topMargin=dp(8)})
         pairing.addView(pairBtn,LinearLayout.LayoutParams(-1,dp(42)).apply{topMargin=dp(8)})
-        all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
+                val features=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER}
+        fun featureButton(label:String,click:()->Unit):TextView=TextView(this).apply{text=label;gravity=Gravity.CENTER;textSize=8f;setTextColor(cyan);background=panelBg();setPadding(dp(8),dp(7),dp(8),dp(7));setOnClickListener{click()}}
+        features.addView(featureButton("VISION"){openCamera() },LinearLayout.LayoutParams(0,dp(40),1f).apply{marginEnd=dp(5)})
+        features.addView(featureButton("FILES"){openFilePicker() },LinearLayout.LayoutParams(0,dp(40),1f).apply{marginEnd=dp(5)})
+        features.addView(featureButton("CALENDAR"){showCalendar() },LinearLayout.LayoutParams(0,dp(40),1f).apply{marginEnd=dp(5)})
+        features.addView(featureButton("SECURE"){authenticate() },LinearLayout.LayoutParams(0,dp(40),1f))
+        all.addView(features,LinearLayout.LayoutParams(-1,dp(48)))
+all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
         all.addView(TextView(this).apply{text="VOICE  •  AI CHAT  •  PHONE  •  PC";gravity=Gravity.CENTER;textSize=8f;letterSpacing=.12f;setTextColor(Color.rgb(45,80,90))},LinearLayout.LayoutParams(-1,dp(22)))
         root.addView(all,FrameLayout.LayoutParams(-1,-1));setContentView(root)
     }
@@ -129,6 +146,58 @@ class MainActivity : Activity() {
         })
         val i=Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply{putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);putExtra(RecognizerIntent.EXTRA_LANGUAGE,Locale.US)}
         recognizer?.startListening(i)
+    }
+
+    private fun openCamera(){
+        if(ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED){ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.CAMERA),44);return}
+        val i=Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
+        if(i.resolveActivity(packageManager)!=null){startActivityForResult(i,REQ_CAMERA)}else status.text="CAMERA UNAVAILABLE"
+    }
+    private fun openFilePicker(){
+        val i=Intent(Intent.ACTION_OPEN_DOCUMENT).apply{type="*/*";putExtra(Intent.EXTRA_ALLOW_MULTIPLE,false);addCategory(Intent.CATEGORY_OPENABLE)}
+        startActivityForResult(i,REQ_FILE)
+    }
+    private fun handleFile(uri:Uri){
+        executor.execute{try{
+            contentResolver.openInputStream(uri)?.use{stream->
+                val bytes=stream.readBytes()
+                if(bytes.size>8_000_000)throw Exception("File is larger than 8 MB.")
+                val name=uri.lastPathSegment?:"selected file"
+                runOnUiThread{addBubble("JARVIS","File ready: $name. Ask me about it in this conversation.",true);status.text="FILE READY"}
+            }?:throw Exception("Could not read file.")
+        }catch(e:Exception){runOnUiThread{status.text="FILE ERROR";addBubble("SYSTEM",e.message?:"File failed",true)}}}
+    }
+    private fun analyzeCameraImage(bitmap:Bitmap){
+        executor.execute{try{
+            val out=ByteArrayOutputStream();bitmap.compress(Bitmap.CompressFormat.JPEG,82,out)
+            val b64=Base64.encodeToString(out.toByteArray(),Base64.NO_WRAP)
+            val body=JSONObject().put("image","data:image/jpeg;base64,"+b64).put("question","Analyze this image and explain what is useful or important.")
+            val d=post("/api/vision",body.toString(),null)
+            val reply=d.optString("reply","No vision result.")
+            runOnUiThread{addBubble("JARVIS",reply,true);status.text="VISION READY";reactor.mode=ReactorView.Mode.ONLINE;speak(reply)}
+        }catch(e:Exception){runOnUiThread{addBubble("SYSTEM",e.message?:"Vision failed",true);status.text="VISION ERROR";reactor.mode=ReactorView.Mode.ERROR}}}
+    }
+    private fun showCalendar(){
+        if(ContextCompat.checkSelfPermission(this,Manifest.permission.READ_CALENDAR)!=PackageManager.PERMISSION_GRANTED){ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.READ_CALENDAR),REQ_CALENDAR);return}
+        val now=System.currentTimeMillis();val end=now+7L*24*60*60*1000
+        val cur=contentResolver.query(android.provider.CalendarContract.Events.CONTENT_URI,arrayOf(android.provider.CalendarContract.Events.TITLE,android.provider.CalendarContract.Events.DTSTART),android.provider.CalendarContract.Events.DTSTART+" BETWEEN ? AND ?",arrayOf(now.toString(),end.toString()),android.provider.CalendarContract.Events.DTSTART+" ASC")
+        val items=ArrayList<String>();cur?.use{while(it.moveToNext()){items.add(java.text.SimpleDateFormat("EEE, dd MMM HH:mm",Locale.getDefault()).format(java.util.Date(it.getLong(1)))+" — "+it.getString(0))}}
+        addBubble("JARVIS",if(items.isEmpty())"No calendar events found for the next 7 days." else "Upcoming events:\n• "+items.joinToString("\n• "),true);status.text="CALENDAR READY"
+    }
+    private fun authenticate(){
+        val executor=ContextCompat.getMainExecutor(this)
+        val manager=BiometricManager.from(this)
+        if(manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)!=BiometricManager.BIOMETRIC_SUCCESS){addBubble("JARVIS","Biometric/device security is not available on this phone.",true);return}
+        BiometricPrompt(this,executor,object:BiometricPrompt.AuthenticationCallback(){
+            override fun onAuthenticationSucceeded(r:BiometricPrompt.AuthenticationResult){addBubble("JARVIS","Secure session unlocked.",true);status.text="SECURE"}
+            override fun onAuthenticationError(code:Int,msg:CharSequence){status.text="SECURITY LOCKED"}
+        }).authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("JARVIS Secure Core").setSubtitle("Authenticate to access protected actions").setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL).build())
+    }
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?){
+        super.onActivityResult(requestCode,resultCode,data)
+        if(resultCode!=Activity.RESULT_OK)return
+        if(requestCode==REQ_FILE && data?.data!=null)handleFile(data.data!!)
+        if(requestCode==REQ_CAMERA && data?.extras?.get("data") is Bitmap)analyzeCameraImage(data.extras!!.get("data") as Bitmap)
     }
 
     private fun requestPermissionsIfNeeded(){val miss=arrayOf(Manifest.permission.READ_CONTACTS,Manifest.permission.CALL_PHONE,Manifest.permission.RECORD_AUDIO).filter{ContextCompat.checkSelfPermission(this,it)!=PackageManager.PERMISSION_GRANTED};if(miss.isNotEmpty())ActivityCompat.requestPermissions(this,miss.toTypedArray(),42)}
