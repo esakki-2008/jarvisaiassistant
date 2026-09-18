@@ -78,6 +78,15 @@ class MainActivity : Activity() {
     }
 
     private fun sendText(){val text=input.text.toString().trim();if(text.isEmpty())return;input.setText("");addBubble("YOU",text,false);askJarvis(text)}
+    private fun cloudMemory(mode:String,content:String?=null,callback:(String)->Unit){
+        executor.execute{try{
+            val token=prefs.getString("deviceToken",null)?:throw Exception("Phone is not paired.")
+            val body=JSONObject().put("mode",mode);if(content!=null)body.put("content",content)
+            val d=post("/api/mobile?action=memory",body.toString(),token)
+            callback(if(mode=="save")"Memory saved to JARVIS cloud." else d.optJSONArray("items")?.toString()?:("[]"))
+        }catch(e:Exception){callback("Memory error: "+(e.message?:"request failed"))}}
+    }
+
     private fun askJarvis(message:String){
         status.text="JARVIS THINKING";reactor.mode=ReactorView.Mode.WORKING
         executor.execute{try{
