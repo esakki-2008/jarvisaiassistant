@@ -23,3 +23,16 @@ grant usage on schema public to service_role;
 grant all on public.mobile_devices to service_role;
 grant all on public.mobile_commands to service_role;
 grant all on public.mobile_pairing_requests to service_role;
+
+-- Cloud memory for the JARVIS Android companion.
+create table if not exists public.mobile_memory (
+  id uuid primary key default gen_random_uuid(),
+  device_id uuid not null references public.mobile_devices(id) on delete cascade,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists mobile_memory_device_created_idx
+  on public.mobile_memory(device_id, created_at desc);
+alter table public.mobile_memory enable row level security;
+revoke all on public.mobile_memory from anon, authenticated;
+grant all on public.mobile_memory to service_role;
