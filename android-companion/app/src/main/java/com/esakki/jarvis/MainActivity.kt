@@ -46,12 +46,12 @@ class MainActivity : Activity() {
     private fun buildUi(){
         val root=FrameLayout(this).apply{setBackgroundColor(bg)}
         root.addView(HudBackgroundView(this),FrameLayout.LayoutParams(-1,-1))
-        val all=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(18),dp(12),dp(18),dp(10))}
+        val all=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(16),dp(10),dp(16),dp(10))}
         val top=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL}
         top.addView(TextView(this).apply{text="J.A.R.V.I.S";textSize=18f;letterSpacing=.24f;setTextColor(cyan);typeface=Typeface.DEFAULT_BOLD},LinearLayout.LayoutParams(0,dp(44),1f))
         top.addView(TextView(this).apply{text="MOBILE CORE";textSize=9f;letterSpacing=.15f;setTextColor(Color.rgb(0,125,150))})
         all.addView(top)
-        reactor=ReactorView(this);all.addView(reactor,LinearLayout.LayoutParams(-1,dp(230)))
+        reactor=ReactorView(this);all.addView(reactor,LinearLayout.LayoutParams(-1,dp(245)))
         status=TextView(this).apply{text="SYSTEM STANDBY";gravity=Gravity.CENTER;textSize=11f;letterSpacing=.15f;setTextColor(cyan)}
         all.addView(status,LinearLayout.LayoutParams(-1,dp(28)))
         val scroll=ScrollView(this).apply{isFillViewport=true}
@@ -60,11 +60,11 @@ class MainActivity : Activity() {
         all.addView(scroll,LinearLayout.LayoutParams(-1,0,1f))
         val controls=LinearLayout(this).apply{gravity=Gravity.CENTER_VERTICAL}
         input=EditText(this).apply{hint="Ask JARVIS...";setHintTextColor(Color.rgb(55,95,105));setTextColor(Color.WHITE);setSingleLine(true);textSize=15f;background=inputBg();setPadding(dp(14),0,dp(14),0)}
-        controls.addView(input,LinearLayout.LayoutParams(0,dp(52),1f))
+        controls.addView(input,LinearLayout.LayoutParams(0,dp(54),1f).apply{marginEnd=dp(6)})
         val mic=TextView(this).apply{text="◉";textSize=25f;gravity=Gravity.CENTER;setTextColor(cyan);setOnClickListener{listen()}}
-        controls.addView(mic,LinearLayout.LayoutParams(dp(58),dp(52)))
+        controls.addView(mic,LinearLayout.LayoutParams(dp(52),dp(54)).apply{marginEnd=dp(6)})
         val send=TextView(this).apply{text="➤";textSize=22f;gravity=Gravity.CENTER;setTextColor(Color.BLACK);background=buttonBg();setOnClickListener{sendText()}}
-        controls.addView(send,LinearLayout.LayoutParams(dp(58),dp(52)))
+        controls.addView(send,LinearLayout.LayoutParams(dp(52),dp(54)))
         all.addView(controls)
         pairing=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER;setPadding(dp(14),dp(14),dp(14),dp(14));background=panelBg();visibility=View.GONE}
         val pairInput=EditText(this).apply{hint="6-DIGIT CODE";setHintTextColor(Color.DKGRAY);gravity=Gravity.CENTER;inputType=2;setTextSize(18f)}
