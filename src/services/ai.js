@@ -30,3 +30,9 @@ export async function routeJarvis(message, history = [], documentLoaded = false)
   if (!response.ok) throw new Error(data?.error || 'JARVIS could not route that request.')
   return data
 }
+
+
+export async function askJarvisWithMemory(message, history = [], memories = []) {
+  const memoryContext = memories.length ? '\n\nRELEVANT SAVED MEMORIES:\n' + memories.map((m) => m.content || m).slice(0, 12).join('\n') : ''
+  return askJarvis(message, history.concat(memoryContext ? [{ role: 'system', content: memoryContext }] : []))
+}
