@@ -78,7 +78,7 @@ button { font: inherit; }
 
 .reactor-stage {
   position: absolute;
-  left: 50%;
+  left: 27%;
   top: 50%;
   width: min(600px, 92vw);
   aspect-ratio: 1;
@@ -185,7 +185,7 @@ button { font: inherit; }
 
 /* --- JARVIS responsive interface layer --- */
 .jarvis-shell{min-height:100svh;height:100svh}
-.chat-panel{position:absolute;z-index:12;right:24px;bottom:24px;width:min(520px,42vw);max-height:min(72svh,760px);display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid rgba(55,239,255,.2);border-radius:22px;background:rgba(2,12,16,.78);backdrop-filter:blur(18px);box-shadow:0 18px 60px rgba(0,0,0,.45),inset 0 0 30px rgba(0,255,255,.025);overflow:hidden}
+.chat-panel{position:absolute;z-index:12;top:72px;right:18px;bottom:24px;width:min(780px,58vw);max-height:none;display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid rgba(55,239,255,.2);border-radius:24px;background:rgba(2,12,16,.8);backdrop-filter:blur(18px);box-shadow:0 18px 60px rgba(0,0,0,.45),inset 0 0 30px rgba(0,255,255,.025);overflow:hidden}
 .chat-panel header{display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid rgba(70,240,255,.1);padding-bottom:10px}
 .chat-panel header strong{display:block;font-size:11px;letter-spacing:.22em;color:#bffcff}
 .chat-panel header small{display:block;margin-top:3px;font-size:8px;letter-spacing:.14em;color:rgba(160,255,255,.45)}
@@ -213,7 +213,7 @@ button { font: inherit; }
 @media(max-width:600px){.chat-panel{left:8px;right:8px;bottom:8px;padding:10px;border-radius:18px;max-height:55svh}.chat-panel header{align-items:flex-start}.header-actions{max-width:65%;}.memory-button{padding:6px;font-size:7px}.reactor-stage{top:27%;height:54svh}.hud-ring{max-width:94vw;max-height:94vw}.core{width:138px;height:138px}.messages{max-height:28svh}.chat-form input{font-size:16px}.top-bar{top:10px}.chat-panel .pairing-strip{max-height:110px;overflow:auto}}
 
 /* unified system dock + state motion */
-.system-dock{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);z-index:8;display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid rgba(50,240,255,.12);border-radius:999px;background:rgba(1,12,16,.48);backdrop-filter:blur(12px);box-shadow:0 0 30px rgba(0,255,255,.04)}
+.system-dock{position:absolute;left:27%;bottom:28px;transform:translateX(-50%);z-index:8;display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid rgba(50,240,255,.12);border-radius:999px;background:rgba(1,12,16,.48);backdrop-filter:blur(12px);box-shadow:0 0 30px rgba(0,255,255,.04)}
 .dock-node{display:flex;align-items:center;gap:6px;color:rgba(175,255,255,.38);font-size:7px;letter-spacing:.16em}.dock-node i{width:4px;height:4px;border-radius:50%;background:rgba(60,210,230,.35);box-shadow:0 0 7px rgba(60,210,230,.3)}.dock-node.active{color:#bfffff}.dock-node.active i{background:#28f5ff;box-shadow:0 0 10px #28f5ff}.dock-line{width:18px;height:1px;background:rgba(50,220,240,.13)}
 .reactor-stage.is-listening .ambient-glow{background:rgba(0,255,255,.24);filter:blur(65px);animation:breathe .9s ease-in-out infinite}
 .reactor-stage.is-listening .core{box-shadow:0 0 0 12px rgba(0,255,255,.06),0 0 55px rgba(0,255,255,.7),inset 0 0 50px rgba(0,255,255,.3)}
