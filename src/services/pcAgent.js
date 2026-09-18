@@ -25,12 +25,12 @@ export function detectPcAction(message) {
   const text = message.trim().toLowerCase()
 
   const appAliases = [
-    ['chrome', 'chrome'],
     ['google chrome', 'chrome'],
-    ['edge', 'edge'],
+    ['chrome', 'chrome'],
     ['microsoft edge', 'edge'],
-    ['vs code', 'vscode'],
+    ['edge', 'edge'],
     ['visual studio code', 'vscode'],
+    ['vs code', 'vscode'],
     ['vscode', 'vscode'],
     ['notepad', 'notepad'],
     ['calculator', 'calculator'],
@@ -39,19 +39,19 @@ export function detectPcAction(message) {
     ['powershell', 'powershell'],
   ]
 
-  if (/^(open|launch|start|run)\\s+/.test(text)) {
+  if (/^(open|launch|start|run)\s+/.test(text)) {
     const match = appAliases.find(([alias]) => text.includes(alias))
     if (match) return { action: 'open_app', value: match[1] }
   }
 
   const folders = ['desktop', 'downloads', 'documents']
   const folder = folders.find(item => text.includes(item))
-  if (folder && /\\b(open|show|go to|access)\\b/.test(text)) {
+  if (folder && /\b(open|show|go to|access)\b/.test(text)) {
     return { action: 'open_path', value: folder }
   }
 
-  const urlMatch = text.match(/https?:\\/\\/\\S+/i)
-  if (urlMatch && /\\b(open|visit|go to)\\b/.test(text)) {
+  const urlMatch = text.match(/https?:\/\/\S+/i)
+  if (urlMatch && /\b(open|visit|go to)\b/.test(text)) {
     return { action: 'open_url', value: urlMatch[0] }
   }
 
