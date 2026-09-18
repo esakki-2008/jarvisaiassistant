@@ -1,3 +1,4 @@
+-- Mobile companion schema
 create table if not exists public.mobile_devices (
   id uuid primary key default gen_random_uuid(), device_name text not null, device_token_hash text not null unique,
   platform text not null default 'android', created_at timestamptz not null default now(), last_seen_at timestamptz,
