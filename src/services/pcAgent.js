@@ -44,6 +44,19 @@ export function detectPcAction(message) {
     if (match) return { action: 'open_app', value: match[1] }
   }
 
+  const websites = [
+    ['youtube', 'https://www.youtube.com'],
+    ['google', 'https://www.google.com'],
+    ['github', 'https://github.com'],
+    ['gmail', 'https://mail.google.com'],
+    ['chatgpt', 'https://chatgpt.com'],
+  ]
+
+  if (/^(open|launch|visit|go to)\s+/.test(text)) {
+    const site = websites.find(([name]) => text.includes(name))
+    if (site) return { action: 'open_url', value: site[1] }
+  }
+
   const folders = ['desktop', 'downloads', 'documents']
   const folder = folders.find(item => text.includes(item))
   if (folder && /\b(open|show|go to|access)\b/.test(text)) {
