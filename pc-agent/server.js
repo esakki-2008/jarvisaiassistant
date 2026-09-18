@@ -9,7 +9,7 @@ const PORT = Number(process.env.JARVIS_PC_AGENT_PORT || 8787)
 const CLOUD_URL = (process.env.JARVIS_CLOUD_URL || 'https://jarvis-ai-assistant-jet-ten.vercel.app').replace(/\/$/, '')
 const CREDENTIALS_FILE = path.join(process.cwd(), '.pc-credentials.json')
 
-const allowedApps = { chrome:'chrome', edge:'msedge', vscode:'code', notepad:'notepad', calculator:'calc', explorer:'explorer', powershell:'powershell' }
+const allowedApps = { chrome:'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', edge:'msedge', vscode:'code', notepad:'notepad', calculator:'calc', explorer:'explorer', powershell:'powershell' }
 const processNames = { chrome:'chrome', edge:'msedge', vscode:'Code', notepad:'notepad', calculator:'CalculatorApp', explorer:'explorer', powershell:'powershell' }
 
 let activeApp = null
@@ -90,6 +90,14 @@ async function execute(action,value){
     if(!target) throw new Error('That folder is not in the safe path allowlist.')
     activeApp='explorer'; launch('explorer.exe',[target]); await new Promise(resolve=>setTimeout(resolve,500)); try { await activateApp('explorer') } catch {}
     return 'Opening '+folder+'.'
+  }
+  if(action==='search_web'){
+    const query=String(value||'').trim()
+    if(!query||query.length>300) throw new Error('Search query must be between 1 and 300 characters.')
+    activeApp=null
+    const url='https://www.google.com/search?q='+encodeURIComponent(query)
+    launch('cmd.exe',['/c','start','',url])
+    return 'Searching Google for '+query+'.'
   }
   if(action==='open_url'){
     const url=String(value||'').trim(); if(!/^https?:\/\//i.test(url)) throw new Error('Only http and https URLs are allowed.')
