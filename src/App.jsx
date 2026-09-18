@@ -163,9 +163,7 @@ function App() {
         const result = await executeMobileCall(mobileCall.action, mobileCall.value)
         addAssistantMessage(result)
         setStatus('CALL QUEUED')
-      } else if (pcAction)
-
-      if (pcAction) {
+      } else if (pcAction) {
         if (!pcOnline && !pairing) {
           throw new Error('No PC is paired. Click PAIR PC first, then pair your Windows PC.')
         }
