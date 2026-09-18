@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-    const clientToken = req.headers.authorization?.replace(/^Bearer\\s+/i, '')
+    const clientToken = req.headers.authorization?.replace(/^Bearer\s+/i, '').trim()
     if (!clientToken) return res.status(401).json({ error: 'JARVIS PC pairing is not authorized in this browser.' })
 
     const { action, value } = req.body || {}
