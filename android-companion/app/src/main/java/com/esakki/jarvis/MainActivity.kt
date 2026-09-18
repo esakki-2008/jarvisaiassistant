@@ -48,7 +48,7 @@ class MainActivity : Activity() {
     private val history=ArrayList<JSONObject>()
 
     override fun onCreate(b:Bundle?){super.onCreate(b); window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN)
-        window.statusBarColor=bg;window.navigationBarColor=bg;buildUi();requestPermissionsIfNeeded()
+        window.statusBarColor=bg;window.navigationBarColor=bg;buildUi();requestPermissionsIfNeeded();handleIncomingShare(intent)
         tts=TextToSpeech(this){tts?.language=Locale.US}
         if(prefs.getString("deviceToken",null)!=null){showPaired();startPolling()}else{pairing.visibility=View.VISIBLE;status.text="AWAITING PAIRING"}
     }
@@ -148,6 +148,16 @@ all.addView(pairing,LinearLayout.LayoutParams(-1,dp(150)))
         recognizer?.startListening(i)
     }
 
+    private fun openNotificationSettings(){
+        try{startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));status.text="NOTIFICATION CORE"}catch(_:Exception){status.text="NOTIFICATION SETTINGS UNAVAILABLE"}
+    }
+    private fun handleIncomingShare(i:Intent?){
+        if(i?.action==Intent.ACTION_SEND && i.type?.startsWith("text/")==true){
+            val shared=i.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
+            if(shared.isNotBlank()){input.setText("Analyze this shared content:\n"+shared);addBubble("JARVIS","Shared content received. Tap Send to analyze it.",false)}
+        }
+    }
+    override fun onNewIntent(i:Intent?){super.onNewIntent(i);setIntent(i);handleIncomingShare(i)}
     private fun openCamera(){
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED){ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.CAMERA),44);return}
         val i=Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
