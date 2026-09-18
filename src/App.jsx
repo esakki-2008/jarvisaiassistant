@@ -3,6 +3,7 @@ import { askJarvis } from './services/ai'
 import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
 import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
+import { readDocument, documentSummary } from './services/document'
 
 const rings = [
   { size: 520, speed: 34, reverse: false },
@@ -22,6 +23,7 @@ function App() {
   const [listening, setListening] = useState(false)
   const [reminders, setReminders] = useState(() => { try { return JSON.parse(localStorage.getItem('jarvis-reminders-v1') || '[]') } catch { return [] } })
   const [showReminders, setShowReminders] = useState(false)
+  const [documentContext, setDocumentContext] = useState(null)
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -135,7 +137,8 @@ function App() {
         addAssistantMessage(result)
         setPcOnline(true)
       } else {
-        const reply = await askJarvis(message, history)
+        const context = documentContext ? '\\n\\nDOCUMENT: ' + documentContext.name + '\\n' + documentContext.text : ''
+        const reply = await askJarvis(message, history.concat(context ? [{ role: 'user', content: 'Use this document as context for the next request:\\n' + context }] : []))
         setMessages((current) => [...current, { role: 'assistant', content: reply }])
         setStatus('READY')
         speak(reply)
@@ -153,6 +156,19 @@ function App() {
     setInput(transcript)
     void sendMessage(transcript)
   }, [sendMessage])
+
+  const handleDocument = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    try {
+      const text = await readDocument(file)
+      const summary = documentSummary(text)
+      setDocumentContext({ name: file.name, text })
+      setMessages((current) => [...current, { role: 'assistant', content: 'Document loaded: ' + file.name + '\\n' + summary.words + ' words, ' + summary.lines + ' lines. You can now ask JARVIS about its contents.' }])
+      setStatus('DOCUMENT READY')
+    } catch (error) { setMessages((current) => [...current, { role: 'assistant', content: error.message }]); setStatus('DOCUMENT ERROR') }
+  }
 
   const handleClearMemory = () => {
     if (!window.confirm('Clear all JARVIS conversation memory on this browser?')) return
@@ -192,6 +208,7 @@ function App() {
           <header>
             <div><strong>J.A.R.V.I.S</strong><small>{status}</small></div>
             <div className="header-actions">
+              <label className="memory-button" title="Load TXT, CSV or JSON"><input type="file" accept=".txt,.csv,.json,text/plain,text/csv,application/json" onChange={handleDocument} hidden /> DOC</label>
               <button className="memory-button" onClick={() => setShowMemory((value) => !value)} type="button">MEMORY <span>{messages.length}</span></button>
               <button className="memory-button" onClick={() => setShowReminders((value) => !value)} type="button">TASKS <span>{reminders.filter((item) => !item.done).length}</span></button>
             </div>
