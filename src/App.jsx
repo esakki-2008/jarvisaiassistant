@@ -168,7 +168,7 @@ function App() {
           )}
 
           <div className="messages" aria-live="polite">
-            {messages.length === 0 && <div className="welcome">JARVIS AI core ready.<br />PC control is available when the local agent is online.</div>}
+            {messages.length === 0 && <div className="welcome">JARVIS AI core ready.<br />PC automation is available when the local agent is online.<br /><small>Try: “Type hello” • “Press Enter” • “Press Ctrl+L” • “Move mouse to 500,300” • “Click”</small></div>}
             {messages.map((item, index) => (
               <div key={`${item.role}-${index}`} className={`message ${item.role}`}><span>{item.content}</span></div>
             ))}
@@ -177,7 +177,7 @@ function App() {
 
           <div className="voice-controls">
             <VoiceOrb onTranscript={handleVoiceTranscript} />
-            <span>{pcOnline ? 'PC LINK ONLINE' : 'PC LINK OFFLINE'}</span>
+            <span>{pcOnline ? 'PC AUTOMATION ONLINE' : 'PC LINK OFFLINE'}</span>
           </div>
 
           <form className="chat-form" onSubmit={sendMessage}>
