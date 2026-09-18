@@ -41,7 +41,6 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestWindowFeatures(Window.FEATURE_NO_TITLE)
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.statusBarColor = bg
         window.navigationBarColor = bg
@@ -137,7 +136,7 @@ class MainActivity : Activity() {
         }
         codeInput = EditText(this).apply {
             hint = "6-DIGIT CODE"
-            hintTextColor = Color.rgb(65, 105, 115)
+            setHintTextColor(Color.rgb(65, 105, 115))
             setTextColor(Color.WHITE)
             textSize = 18f
             gravity = Gravity.CENTER
