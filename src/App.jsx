@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { askJarvis, askJarvisWithMemory, routeJarvis, searchJarvis } from './services/ai'
+import { askJarvis, askJarvisWithMemory, routeJarvis, searchJarvis, analyzeImage } from './services/ai'
 import { loadCloudMemories, saveCloudMemory } from './services/cloudMemory'
 import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
@@ -31,6 +31,8 @@ function App() {
   const [documentContext, setDocumentContext] = useState(null)
   const [documentLibrary, setDocumentLibrary] = useState(() => loadDocumentLibrary())
   const [showDocuments, setShowDocuments] = useState(false)
+  const [visionFile, setVisionFile] = useState(null)
+  const [mode, setMode] = useState('CORE')
   const [pairing, setPairing] = useState(() => getPairing())
   const [pairingBusy, setPairingBusy] = useState(false)
   const [pairingChecking, setPairingChecking] = useState(false)
@@ -181,6 +183,23 @@ function App() {
     setStatus('THINKING')
 
     try {
+      if (visionFile) {
+        const question = message || 'Analyze the image.'
+        const reply = await analyzeImage(visionFile, question)
+        addAssistantMessage(reply)
+        setVisionFile(null)
+        setStatus('VISION READY')
+        return
+      }
+
+      const codingMode = mode === 'CODE' || /^(debug|review|explain|write|fix)\s+(this\s+)?(code|program|script)/i.test(message)
+      if (codingMode && !visionFile) {
+        const reply = await askJarvisWithMemory('Act as JARVIS Coding Core. Analyze, debug, explain, or generate code. Return practical code and explain important changes. User request: ' + message, history, cloudMemories)
+        addAssistantMessage(reply)
+        setStatus('CODE READY')
+        return
+      }
+
       const reminder = parseReminder(message)
       if (reminder) {
         if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission()
@@ -415,6 +434,8 @@ function App() {
             <div className="header-actions">
               <label className="memory-button" title="Add TXT, CSV, JSON, PDF or DOCX"><input type="file" accept=".txt,.csv,.json,.pdf,.docx,text/plain,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleDocument} hidden /> DOC</label>
               <button className="memory-button" onClick={() => setShowDocuments((value) => !value)} type="button">DOCS <span>{documentLibrary.length}</span></button>
+              <label className="memory-button" title="Analyze an image"><input type="file" accept="image/*" onChange={(e) => setVisionFile(e.target.files?.[0] || null)} hidden /> VISION</label>
+              <button className="memory-button" onClick={() => setMode((value) => value === 'CODE' ? 'CORE' : 'CODE')} type="button">{mode}</button>
               <button className="memory-button" onClick={() => setShowMemory((value) => !value)} type="button">MEMORY <span>{messages.length}</span></button>
               <button className="memory-button" onClick={() => setShowReminders((value) => !value)} type="button">TASKS <span>{reminders.filter((item) => !item.done).length}</span></button>
               <button className="memory-button" onClick={handleStartPairing} type="button" disabled={pairingBusy}>{pairing?.deviceName ? 'PC PAIRED' : pairing ? 'PAIRING…' : 'PAIR PC'}</button>
@@ -486,11 +507,11 @@ function App() {
 
           <div className="voice-controls">
             <VoiceOrb onTranscript={handleVoiceTranscript} onListeningChange={setListening} />
-            <span>{pcOnline ? 'PC AUTOMATION ONLINE' : 'PC LINK OFFLINE'}</span>
+            <span>{visionFile ? 'VISION IMAGE READY' : mode === 'CODE' ? 'CODING CORE ACTIVE' : pcOnline ? 'PC AUTOMATION ONLINE' : 'PC LINK OFFLINE'}</span>
           </div>
 
           <form className="chat-form" onSubmit={sendMessage}>
-            <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Type a command…" aria-label="Message JARVIS" disabled={busy} />
+            <input value={input} onChange={(event) => setInput(event.target.value)} placeholder={visionFile ? 'Ask about the selected image…' : mode === 'CODE' ? 'Coding Core: describe the code task…' : 'Type a command…'} aria-label="Message JARVIS" disabled={busy} />
             <button type="submit" disabled={busy || !input.trim()}>SEND</button>
           </form>
         </section>
