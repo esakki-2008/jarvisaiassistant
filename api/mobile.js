@@ -48,6 +48,46 @@ export default async function handler(req,res){
       return res.status(200).json({paired:false,expired:false})
     }
 
+
+    if(action==='assistant'){
+      const token=req.headers.authorization?.replace(/^Bearer\\s+/i,'')
+      if(!token) return res.status(401).json({error:'Missing phone authentication.'})
+      const {data:device}=await db.from('mobile_devices').select('id,enabled').eq('device_token_hash',hash(token)).maybeSingle()
+      if(!device?.enabled) return res.status(401).json({error:'Phone is not authorized.'})
+      const {message='',history=[]}=req.body||{}
+      if(!String(message).trim()) return res.status(400).json({error:'A message is required.'})
+      const key=process.env.OPENROUTER_API_KEY
+      const model=process.env.OPENROUTER_MODEL||'openrouter/free'
+      if(!key) return res.status(503).json({error:'JARVIS AI is not configured on the server.'})
+      const system='You are JARVIS. Return ONLY JSON: {"tool":"chat|mobile|pc","action":"...","value":"...","reply":"..."}. mobile actions: call_contact, call_number. pc actions: open_app, open_path, open_url, search_web, type_text, key_press, hotkey, mouse_click, mouse_move. For normal conversation use chat. Never claim an action happened before confirmation.'
+      const messages=[{role:'system',content:system},...(Array.isArray(history)?history.filter(x=>x&&(x.role==='user'||x.role==='assistant')&&typeof x.content==='string').slice(-8):[]),{role:'user',content:String(message)}]
+      const ai=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key,'HTTP-Referer':'https://github.com/esakki-2008/jarvisaiassistant','X-Title':'JARVIS AI Assistant'},body:JSON.stringify({model,messages,temperature:0,max_tokens:350})})
+      const data=await ai.json().catch(()=>({}))
+      if(!ai.ok) return res.status(502).json({error:data?.error?.message||'AI provider error.'})
+      const raw=data?.choices?.[0]?.message?.content||''
+      const match=raw.match(/\{[\s\S]*\}/)
+      if(!match) return res.status(502).json({error:'JARVIS returned an invalid response.'})
+      let d
+      try{d=JSON.parse(match[0])}catch{return res.status(502).json({error:'JARVIS returned invalid JSON.'})}
+      if(d.tool==='mobile'&&['call_contact','call_number'].includes(d.action)){
+        const value=String(d.value||'').trim()
+        if(!value) return res.status(400).json({error:'No call target found.'})
+        const {data:cmd,error}=await db.from('mobile_commands').insert({device_id:device.id,action:d.action,value:value.slice(0,200)}).select('id').single()
+        if(error) throw error
+        return res.status(200).json({reply:'Call request sent to your phone for confirmation.',action:d.action,commandId:cmd.id})
+      }
+      if(d.tool==='pc'){
+        const allowed=['open_app','open_path','open_url','search_web','type_text','key_press','hotkey','mouse_click','mouse_move']
+        if(!allowed.includes(d.action)) return res.status(400).json({error:'Unsupported PC action.'})
+        const {data:pcs,error:pcError}=await db.from('pc_devices').select('id,enabled').eq('enabled',true).order('created_at',{ascending:false}).limit(1)
+        if(pcError) throw pcError
+        if(!pcs?.[0]) return res.status(409).json({error:'No paired PC is online/authorized.'})
+        const {data:cmd,error}=await db.from('pc_commands').insert({device_id:pcs[0].id,action:d.action,value:String(d.value||'').slice(0,1000)}).select('id').single()
+        if(error) throw error
+        return res.status(200).json({reply:'PC command sent to your paired PC.',action:d.action,commandId:cmd.id})
+      }
+      return res.status(200).json({reply:String(d.reply||'How can I help you?')})
+    }
     if(action==='command'){
       const token=req.headers.authorization?.replace(/^Bearer\s+/i,'')
       if(!token) return res.status(401).json({error:'Missing phone pairing token.'})
