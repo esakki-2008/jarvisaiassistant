@@ -5,6 +5,7 @@ import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './serv
 import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
 import { readDocument, documentSummary } from './services/document'
 import { getPairing, startPcPairing, getPcPairingStatus, savePairedDevice, clearPcPairing } from './services/pcPairing'
+import { detectMobileCall, executeMobileCall, getMobilePairing, startMobilePairing, getMobilePairingStatus, saveMobileDevice, clearMobilePairing } from './services/mobileAgent'
 
 const rings = [
   { size: 520, speed: 34, reverse: false },
@@ -28,6 +29,8 @@ function App() {
   const [pairing, setPairing] = useState(() => getPairing())
   const [pairingBusy, setPairingBusy] = useState(false)
   const [pairingChecking, setPairingChecking] = useState(false)
+  const [mobilePairing, setMobilePairing] = useState(() => getMobilePairing())
+  const [mobilePairingBusy, setMobilePairingBusy] = useState(false)
 
   useEffect(() => {
     const update = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
@@ -152,6 +155,15 @@ function App() {
       if (/^(?:what do you remember|show my memories|my memories)[?.!]?$/i.test(message.trim())) { const facts = loadFacts(); addAssistantMessage(facts.length ? 'I remember:\n• ' + facts.join('\n• ') : 'I do not have any saved facts yet.'); setStatus('MEMORY READY'); return }
 
       const pcAction = detectPcAction(message)
+      const mobileCall = detectMobileCall(message)
+
+      if (mobileCall) {
+        if (!mobilePairing?.deviceName) throw new Error('No Android phone is paired. Click PHONE first, then pair your Android phone.')
+        setStatus('PHONE CALL')
+        const result = await executeMobileCall(mobileCall.action, mobileCall.value)
+        addAssistantMessage(result)
+        setStatus('CALL QUEUED')
+      } else if (pcAction)
 
       if (pcAction) {
         if (!pcOnline && !pairing) {
@@ -166,7 +178,14 @@ function App() {
         const context = documentContext ? '\\n\\nDOCUMENT: ' + documentContext.name + '\\n' + documentContext.text : ''
         const routed = await routeJarvis(message, history, Boolean(documentContext))
 
-        if (routed.tool === 'pc') {
+        if (routed.tool === 'mobile') {
+          if (!mobilePairing?.deviceName) throw new Error('No Android phone is paired. Click PHONE first, then pair your Android phone.')
+          if (!routed.action || routed.value === undefined) throw new Error('JARVIS could not determine the phone call.')
+          setStatus('PHONE CALL')
+          const result = await executeMobileCall(routed.action, routed.value)
+          addAssistantMessage(result)
+          setStatus('CALL QUEUED')
+        } else if (routed.tool === 'pc') {
           if (!pcOnline && !pairing) throw new Error('No PC is paired. Click PAIR PC first, then pair your Windows PC.')
           if (!routed.action || routed.value === undefined) throw new Error('JARVIS could not determine the PC action.')
           setStatus('PC ACTION')
@@ -198,7 +217,7 @@ function App() {
     } finally {
       setBusy(false)
     }
-  }, [busy, input, messages, pcOnline, pairing])
+  }, [busy, input, messages, pcOnline, pairing, mobilePairing])
 
   const handleVoiceTranscript = useCallback((transcript) => {
     setStatus('VOICE INPUT')
@@ -232,6 +251,19 @@ function App() {
       setPairingBusy(false)
     }
   }
+
+
+  const handleStartMobilePairing = async () => {
+    setMobilePairingBusy(true)
+    try {
+      const data = await startMobilePairing()
+      setMobilePairing(data)
+      setStatus('PHONE PAIRING READY')
+    } catch (error) { addAssistantMessage(error.message); setStatus('PHONE PAIRING ERROR') }
+    finally { setMobilePairingBusy(false) }
+  }
+
+  const handleUnpairMobile = () => { clearMobilePairing(); setMobilePairing(null); setStatus('PHONE UNPAIRED'); setTimeout(() => setStatus('READY'), 1800) }
 
   const handleUnpair = () => {
     clearPcPairing()
@@ -282,8 +314,16 @@ function App() {
               <button className="memory-button" onClick={() => setShowMemory((value) => !value)} type="button">MEMORY <span>{messages.length}</span></button>
               <button className="memory-button" onClick={() => setShowReminders((value) => !value)} type="button">TASKS <span>{reminders.filter((item) => !item.done).length}</span></button>
               <button className="memory-button" onClick={handleStartPairing} type="button" disabled={pairingBusy}>{pairing?.deviceName ? 'PC PAIRED' : pairing ? 'PAIRING…' : 'PAIR PC'}</button>
+              <button className="memory-button" onClick={handleStartMobilePairing} type="button" disabled={mobilePairingBusy}>{mobilePairing?.deviceName ? 'PHONE PAIRED' : mobilePairing ? 'PAIRING…' : 'PHONE'}</button>
             </div>
           </header>
+
+          {mobilePairing && (
+            <div className="memory-strip pairing-strip">
+              <div><strong>{mobilePairing.deviceName ? 'PHONE PAIRED' : 'PAIR YOUR ANDROID'}</strong><span>{mobilePairing.deviceName ? mobilePairing.deviceName : 'Enter this code in JARVIS Companion'}</span>{!mobilePairing.deviceName && <><b className="pair-code">{mobilePairing.code}</b><span>Install the Android companion, then enter this code.</span></>}</div>
+              <button type="button" onClick={mobilePairing.deviceName ? handleUnpairMobile : handleStartMobilePairing}>{mobilePairing.deviceName ? 'UNPAIR' : 'NEW CODE'}</button>
+            </div>
+          )}
 
           {pairing && (
             <div className="memory-strip pairing-strip">
