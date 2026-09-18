@@ -70,9 +70,7 @@ async function pollCloud(){
 async function activateApp(app){
   const processName = processNames[app]
   if(!processName) return
-  const script = 'Add-Type -AssemblyName Microsoft.VisualBasic\n' +
-    '$p=Get-Process -Name \' + processName + '\' -ErrorAction SilentlyContinue | Select-Object -First 1\n' +
-    'if($p){ [Microsoft.VisualBasic.Interaction]::AppActivate($p.Id) | Out-Null; Start-Sleep -Milliseconds 250 } else { throw \' + processName + ' is not running.\' '
+  const script = `Add-Type -AssemblyName Microsoft.VisualBasic\n$p=Get-Process -Name '${processName}' -ErrorAction SilentlyContinue | Select-Object -First 1\nif($p){ [Microsoft.VisualBasic.Interaction]::AppActivate($p.Id) | Out-Null; Start-Sleep -Milliseconds 250 } else { throw '${processName} is not running.' }`
   await powershell(script)
 }
 
