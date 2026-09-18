@@ -29,6 +29,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ pairingId: data.id, code, clientToken, expiresAt })
   } catch (error) {
     console.error('Pair start error:', error)
-    return res.status(500).json({ error: 'Could not start secure PC pairing.' })
+    return res.status(500).json({ error: 'Pairing setup error: ' + (error?.message || 'Unknown server error') })
   }
 }
