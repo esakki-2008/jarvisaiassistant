@@ -66,7 +66,7 @@ class MainActivity : Activity() {
         val send=TextView(this).apply{text="➤";textSize=22f;gravity=Gravity.CENTER;setTextColor(Color.BLACK);background=buttonBg();setOnClickListener{sendText()}}
         controls.addView(send,LinearLayout.LayoutParams(dp(58),dp(52)))
         all.addView(controls)
-        pairing=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER;padding=dp(14);background=panelBg();visibility=View.GONE}
+        pairing=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER;setPadding(dp(14),dp(14),dp(14),dp(14));background=panelBg();visibility=View.GONE}
         val pairInput=EditText(this).apply{hint="6-DIGIT CODE";setHintTextColor(Color.DKGRAY);gravity=Gravity.CENTER;inputType=2;setTextSize(18f)}
         val pairBtn=TextView(this).apply{text="PAIR PHONE";gravity=Gravity.CENTER;setTextColor(Color.BLACK);background=buttonBg();setOnClickListener{pairPhone(pairInput.text.toString())}}
         pairing.addView(TextView(this).apply{text="PAIR THIS PHONE";gravity=Gravity.CENTER;setTextColor(cyan);textSize=11f})
@@ -90,7 +90,7 @@ class MainActivity : Activity() {
     }
 
     private fun addBubble(who:String,text:String,speakable:Boolean){
-        val b=TextView(this).apply{text=who+"\\n"+text;textSize=13f;setTextColor(if(who=="JARVIS")cyan else Color.LTGRAY);setPadding(dp(14),dp(10),dp(14),dp(10));background=panelBg()}
+        val b=TextView(this).apply{this.text=who+"\\n"+text;textSize=13f;setTextColor(if(who=="JARVIS")cyan else Color.LTGRAY);setPadding(dp(14),dp(10),dp(14),dp(10));background=panelBg()}
         chat.addView(b,LinearLayout.LayoutParams(-1,LinearLayout.LayoutParams.WRAP_CONTENT).apply{bottomMargin=dp(8)})
     }
     private fun speak(text:String){tts?.speak(text.take(1000),TextToSpeech.QUEUE_FLUSH,null,"jarvis")}
@@ -125,5 +125,5 @@ class MainActivity : Activity() {
     override fun onDestroy(){recognizer?.destroy();tts?.shutdown();executor.shutdownNow();super.onDestroy()}
 
     class HudBackgroundView(c:Context):View(c){private val p=Paint(1);override fun onDraw(x:Canvas){p.style=Paint.Style.STROKE;p.strokeWidth=1f;p.color=Color.rgb(0,27,35);var a=0f;while(a<width){x.drawLine(a,0f,a,height.toFloat(),p);a+=42};a=0f;while(a<height){x.drawLine(0f,a,width.toFloat(),a,p);a+=42}}}
-    class ReactorView(c:Context):View(c){enum class Mode{ONLINE,WORKING,ERROR};var mode=Mode.ONLINE;private val p=Paint(1);private var a=0f;override fun onDraw(c:Canvas){val x=width/2f;val y=height/2f;val r=minOf(width,height)*.25f;p.style=Paint.Style.FILL;p.shader=RadialGradient(x,y,r*1.8f,intArrayOf(Color.argb(110,0,229,255),Color.argb(25,0,130,170),Color.TRANSPARENT),floatArrayOf(0f,.45f,1f),Shader.TileMode.CLAMP);c.drawCircle(x,y,r*1.8f,p);p.shader=null;p.style=Paint.Style.STROKE;for(i in 0..5){p.strokeWidth=if(i==2)3f else 1f;p.color=Color.argb(if(i==2)210 else 80,0,229,255);val q=r*(1f+i*.18f);val s=a*(if(i%2==0)1f else-.7f)+i*31;c.drawArc(x-q,y-q,x+q,y+q,s,if(mode==Mode.WORKING)110f else 70f,false,p)}p.style=Paint.Style.FILL;p.color=cyan;c.drawCircle(x,y,r*.34f,p);p.color=Color.BLACK;p.textAlign=Paint.Align.CENTER;p.typeface=Typeface.DEFAULT_BOLD;p.textSize=r*.16f;c.drawText("JARVIS",x,y+r*.05f,p);p.color=cyan;p.textSize=r*.07f;c.drawText(if(mode==Mode.WORKING)"WORKING"else if(mode==Mode.ERROR)"ALERT"else"ONLINE",x,y+r*.62f,p);a=(a+1.4f)%360;postInvalidateOnAnimation()}}
+    class ReactorView(c:Context):View(c){enum class Mode{ONLINE,WORKING,ERROR};var mode=Mode.ONLINE;private val p=Paint(1);private var a=0f;override fun onDraw(c:Canvas){val x=width/2f;val y=height/2f;val r=minOf(width,height)*.25f;p.style=Paint.Style.FILL;p.shader=RadialGradient(x,y,r*1.8f,intArrayOf(Color.argb(110,0,229,255),Color.argb(25,0,130,170),Color.TRANSPARENT),floatArrayOf(0f,.45f,1f),Shader.TileMode.CLAMP);c.drawCircle(x,y,r*1.8f,p);p.shader=null;p.style=Paint.Style.STROKE;for(i in 0..5){p.strokeWidth=if(i==2)3f else 1f;p.color=Color.argb(if(i==2)210 else 80,0,229,255);val q=r*(1f+i*.18f);val s=a*(if(i%2==0)1f else-.7f)+i*31;c.drawArc(x-q,y-q,x+q,y+q,s,if(mode==Mode.WORKING)110f else 70f,false,p)}p.style=Paint.Style.FILL;p.color=Color.rgb(0,229,255);c.drawCircle(x,y,r*.34f,p);p.color=Color.BLACK;p.textAlign=Paint.Align.CENTER;p.typeface=Typeface.DEFAULT_BOLD;p.textSize=r*.16f;c.drawText("JARVIS",x,y+r*.05f,p);p.color=cyan;p.textSize=r*.07f;c.drawText(if(mode==Mode.WORKING)"WORKING"else if(mode==Mode.ERROR)"ALERT"else"ONLINE",x,y+r*.62f,p);a=(a+1.4f)%360;postInvalidateOnAnimation()}}
 }
