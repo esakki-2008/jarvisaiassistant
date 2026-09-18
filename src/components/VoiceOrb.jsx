@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-export default function VoiceOrb({ onTranscript }) {
+export default function VoiceOrb({ onTranscript, onListeningChange }) {
   const [active, setActive] = useState(false)
   const [supported, setSupported] = useState(true)
   const recognitionRef = useRef(null)
@@ -16,9 +16,9 @@ export default function VoiceOrb({ onTranscript }) {
     recognition.lang = 'en-IN'
     recognition.interimResults = false
     recognition.continuous = false
-    recognition.onstart = () => setActive(true)
-    recognition.onend = () => setActive(false)
-    recognition.onerror = () => setActive(false)
+    recognition.onstart = () => { setActive(true); onListeningChange?.(true) }
+    recognition.onend = () => { setActive(false); onListeningChange?.(false) }
+    recognition.onerror = () => { setActive(false); onListeningChange?.(false) }
     recognition.onresult = (event) => {
       const transcript = event.results?.[0]?.[0]?.transcript?.trim()
       if (transcript) onTranscript?.(transcript)
@@ -31,7 +31,7 @@ export default function VoiceOrb({ onTranscript }) {
       recognition.abort()
       recognitionRef.current = null
     }
-  }, [onTranscript])
+  }, [onTranscript, onListeningChange])
 
   const toggleListening = () => {
     if (!supported) return
@@ -45,6 +45,7 @@ export default function VoiceOrb({ onTranscript }) {
       recognitionRef.current?.start()
     } catch {
       setActive(false)
+      onListeningChange?.(false)
     }
   }
 
