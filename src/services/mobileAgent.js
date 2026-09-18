@@ -12,7 +12,7 @@ async function post(path,body,token=''){
 }
 
 export async function startMobilePairing(){
-  const d=await post('/api/mobile-pair-start',{})
+  const d=await post('/api/mobile?action=pair-start',{})
   localStorage.setItem(TOKEN_KEY,d.clientToken)
   const pairing={pairingId:d.pairingId,code:d.code,expiresAt:d.expiresAt}
   localStorage.setItem(PAIR_KEY,JSON.stringify(pairing))
@@ -21,7 +21,7 @@ export async function startMobilePairing(){
 export async function getMobilePairingStatus(){
   const token=getMobileToken()
   if(!token)return {paired:false}
-  try{return await post('/api/mobile-pair-status',{},token)}catch{return {paired:false}}
+  try{return await post('/api/mobile?action=pair-status',{},token)}catch{return {paired:false}}
 }
 export function saveMobileDevice(deviceName){
   const p=getMobilePairing()||{}
@@ -33,7 +33,7 @@ export function clearMobilePairing(){localStorage.removeItem(TOKEN_KEY);localSto
 export async function executeMobileCall(action,value){
   const token=getMobileToken()
   if(!token)throw new Error('No Android phone is paired. Click PHONE first.')
-  const d=await post('/api/mobile-command',{action,value},token)
+  const d=await post('/api/mobile?action=command',{action,value},token)
   return d.message||'Call request sent to your phone.'
 }
 export function detectMobileCall(message){
