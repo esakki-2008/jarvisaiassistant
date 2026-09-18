@@ -58,7 +58,7 @@ function execute(action, value) {
 
   if (action === 'open_url') {
     const url = String(value || '').trim()
-    if (!/^https?:\\/\\//i.test(url)) throw new Error('Only http and https URLs are allowed.')
+    if (!/^https?:\/\//i.test(url)) throw new Error('Only http and https URLs are allowed.')
     launch('cmd.exe', ['/c', 'start', '', url])
     return 'Opening the requested website.'
   }
