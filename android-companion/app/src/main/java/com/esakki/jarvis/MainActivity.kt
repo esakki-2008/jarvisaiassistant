@@ -7,9 +7,8 @@ import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.graphics.drawable.GradientDrawable
-import android.hardware.biometrics.BiometricPrompt
-import android.os.Build
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.CancellationSignal
 import android.provider.ContactsContract
@@ -18,7 +17,6 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.view.*
-import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -27,8 +25,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 import java.util.concurrent.Executors
-import kotlin.math.cos
-import kotlin.math.sin
 
 class MainActivity : Activity() {
     private val executor=Executors.newSingleThreadExecutor()
@@ -85,8 +81,8 @@ class MainActivity : Activity() {
         lockOverlay=FrameLayout(this).apply{setBackgroundColor(bg)}
         val lockBox=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER}
         lockBox.addView(TextView(this).apply{text="J.A.R.V.I.S";gravity=Gravity.CENTER;textSize=28f;letterSpacing=.25f;setTextColor(cyan);typeface=Typeface.DEFAULT_BOLD})
-        lockBox.addView(TextView(this).apply{text="PERSONAL FACE LOCK";gravity=Gravity.CENTER;textSize=10f;letterSpacing=.18f;setTextColor(Color.rgb(0,125,150));setPadding(0,dp(10),0,dp(18))})
-        lockBox.addView(TextView(this).apply{text="USE FACE / FINGERPRINT / DEVICE CREDENTIAL";gravity=Gravity.CENTER;textSize=9f;setTextColor(Color.rgb(90,130,140));setPadding(dp(10),0,dp(10),dp(18))})
+        lockBox.addView(TextView(this).apply{text="PERSONAL BIOMETRIC LOCK";gravity=Gravity.CENTER;textSize=10f;letterSpacing=.18f;setTextColor(Color.rgb(0,125,150));setPadding(0,dp(10),0,dp(18))})
+        lockBox.addView(TextView(this).apply{text="USE YOUR ANDROID BIOMETRIC";gravity=Gravity.CENTER;textSize=9f;setTextColor(Color.rgb(90,130,140));setPadding(dp(10),0,dp(10),dp(18))})
         lockBox.addView(TextView(this).apply{text="UNLOCK JARVIS";gravity=Gravity.CENTER;setTextColor(Color.BLACK);background=buttonBg();setPadding(dp(30),0,dp(30),0);setOnClickListener{authenticateFor("JARVIS")}},LinearLayout.LayoutParams(-2,dp(50)))
         lockOverlay.addView(lockBox,FrameLayout.LayoutParams(-1,-1))
         root.addView(lockOverlay,FrameLayout.LayoutParams(-1,-1))
@@ -94,20 +90,29 @@ class MainActivity : Activity() {
     }
 
     private fun sendText(){val text=input.text.toString().trim();if(text.isEmpty())return;input.setText("");addBubble("YOU",text,false);askJarvis(text)}
-    private fun sensitive(text:String):Boolean=Regex("""(?i)\\b(call|whatsapp|message|pc|computer|open app|open url|type|press|click|remember|save|camera|file|document|calendar|notification)\\b""").containsMatchIn(text)
     private fun lockJarvis(){unlockedUntil=0L;if(::lockOverlay.isInitialized){lockOverlay.visibility=View.VISIBLE;status.text="PERSONAL LOCK ACTIVE";reactor.mode=ReactorView.Mode.ERROR}}
-    private fun ensureSecure(action:String,done:()->Unit){if(System.currentTimeMillis()<unlockedUntil){done();return};authenticateFor(action,done)}
     private fun authenticateFor(action:String,done:(()->Unit)?=null){
         if(Build.VERSION.SDK_INT<28){addBubble("JARVIS","Secure biometric lock requires Android 9 or newer.",true);return}
         val manager=getSystemService(android.hardware.biometrics.BiometricManager::class.java)
         if(manager.canAuthenticate()!=android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS){addBubble("JARVIS","No supported biometric is enrolled on this device.",true);return}
-        val prompt=BiometricPrompt.Builder(this).setTitle("JARVIS Personal Face Lock").setSubtitle("Authenticate to unlock "+action).setDescription("Your biometric data stays in Android's secure system.").setNegativeButton("CANCEL",mainExecutor){}.build()
+        val prompt=BiometricPrompt.Builder(this)
+            .setTitle("JARVIS Personal Biometric Lock")
+            .setSubtitle("Authenticate to unlock "+action)
+            .setDescription("Your biometric data stays in Android's secure system.")
+            .setNegativeButton("CANCEL",mainExecutor,{_->})
+            .build()
         prompt.authenticate(CancellationSignal(),mainExecutor,object:BiometricPrompt.AuthenticationCallback(){
-            override fun onAuthenticationSucceeded(result:BiometricPrompt.AuthenticationResult){unlockedUntil=System.currentTimeMillis()+secureWindowMs;if(::lockOverlay.isInitialized)lockOverlay.visibility=View.GONE;status.text="SECURE • 10 MIN";done?.invoke()}
+            override fun onAuthenticationSucceeded(result:BiometricPrompt.AuthenticationResult){
+                unlockedUntil=System.currentTimeMillis()+secureWindowMs
+                if(::lockOverlay.isInitialized)lockOverlay.visibility=View.GONE
+                status.text="SECURE • 10 MIN"
+                done?.invoke()
+            }
             override fun onAuthenticationError(errorCode:Int,errString:CharSequence){status.text="PERSONAL LOCK ACTIVE"}
         })
     }
     override fun onResume(){super.onResume();if(::lockOverlay.isInitialized&&System.currentTimeMillis()>=unlockedUntil)lockJarvis()}
+
     private fun openWhatsApp(message:String){
         val m=message.trim()
         val phone=Regex("""(?:whatsapp|message)\s+(?:to\s+)?(\+?[0-9][0-9 -]{7,})\s*[:,-]\s*(.+)""",RegexOption.IGNORE_CASE).find(m)
@@ -143,7 +148,7 @@ class MainActivity : Activity() {
     }
 
     private fun addBubble(who:String,text:String,speakable:Boolean){
-        val b=TextView(this).apply{this.text=who+"\\n"+text;textSize=13f;setTextColor(if(who=="JARVIS")cyan else Color.LTGRAY);setPadding(dp(14),dp(10),dp(14),dp(10));background=panelBg()}
+        val b=TextView(this).apply{this.text=who+"\n"+text;textSize=13f;setTextColor(if(who=="JARVIS")cyan else Color.LTGRAY);setPadding(dp(14),dp(10),dp(14),dp(10));background=panelBg()}
         chat.addView(b,LinearLayout.LayoutParams(-1,LinearLayout.LayoutParams.WRAP_CONTENT).apply{bottomMargin=dp(8)})
     }
     private fun speak(text:String){tts?.speak(text.take(1000),TextToSpeech.QUEUE_FLUSH,null,"jarvis")}
@@ -200,7 +205,6 @@ class MainActivity : Activity() {
             paint.shader = glow
             canvas.drawCircle(cx, cy, radius * 2f, paint)
             paint.shader = null
-
             paint.style = Paint.Style.STROKE
             for (i in 0..5) {
                 paint.strokeWidth = if (i == 2) 3f else 1f
@@ -210,7 +214,6 @@ class MainActivity : Activity() {
                 val sweep = if (mode == Mode.WORKING) 110f else 70f
                 canvas.drawArc(cx - ring, cy - ring, cx + ring, cy + ring, start, sweep, false, paint)
             }
-
             paint.style = Paint.Style.FILL
             paint.color = Color.rgb(0, 229, 255)
             canvas.drawCircle(cx, cy, radius * 0.34f, paint)
@@ -219,14 +222,9 @@ class MainActivity : Activity() {
             paint.typeface = Typeface.DEFAULT_BOLD
             paint.textSize = radius * 0.16f
             canvas.drawText("JARVIS", cx, cy + radius * 0.05f, paint)
-
             paint.color = Color.rgb(0, 229, 255)
             paint.textSize = radius * 0.07f
-            val label = when (mode) {
-                Mode.WORKING -> "WORKING"
-                Mode.ERROR -> "ALERT"
-                Mode.ONLINE -> "ONLINE"
-            }
+            val label = when (mode) { Mode.WORKING -> "WORKING"; Mode.ERROR -> "ALERT"; Mode.ONLINE -> "ONLINE" }
             canvas.drawText(label, cx, cy + radius * 0.62f, paint)
             angle = (angle + 1.4f) % 360f
             postInvalidateOnAnimation()
