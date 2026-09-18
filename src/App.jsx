@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { askJarvis, routeJarvis } from './services/ai'
+import { askJarvis, routeJarvis, searchJarvis } from './services/ai'
 import VoiceOrb from './components/VoiceOrb'
 import { clearMemory, loadMemory, saveMemory, loadFacts, saveFact } from './services/memory'
 import { detectPcAction, executePcAction, pcAgentStatus } from './services/pcAgent'
@@ -225,11 +225,16 @@ function App() {
           const facts = loadFacts()
           addAssistantMessage(facts.length ? 'I remember:\\n• ' + facts.join('\\n• ') : 'I do not have any saved facts yet.')
           setStatus('MEMORY READY')
+        } else if (routed.tool === 'search') {
+          const result = await searchJarvis(routed.value || message)
+          const lines = []
+          if (result.answer) lines.push(result.answer)
+          if (result.source) lines.push('Source: ' + result.source)
+          if (result.results?.length) lines.push('\nRelated results:\n' + result.results.slice(0, 5).map((item, index) => (index + 1) + '. ' + item.title + (item.snippet ? '\n' + item.snippet : '') + (item.url ? '\n' + item.url : '')).join('\n\n'))
+          addAssistantMessage(lines.join('\n') || 'I could not find a useful result for that search.')
+          setStatus('SEARCH READY')
         } else {
-          const prompt = routed.tool === 'search'
-            ? 'Answer the user using current web-search-style reasoning. If you cannot browse live data, clearly say so. User request: ' + message
-            : message
-          const reply = await askJarvis(prompt, history.concat(context ? [{ role: 'user', content: 'Use this document as context for the next request:\\n' + context }] : []))
+          const reply = await askJarvis(message, history.concat(context ? [{ role: 'user', content: 'Use this document as context for the next request:\\n' + context }] : []))
           setMessages((current) => [...current, { role: 'assistant', content: reply }])
           setStatus('READY')
           speak(reply)
