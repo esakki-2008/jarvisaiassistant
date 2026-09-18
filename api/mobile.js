@@ -53,8 +53,24 @@ export default async function handler(req,res){
       if(!token) return res.status(401).json({error:'Missing phone pairing token.'})
       const {action:commandAction,value}=req.body||{}
       if(!['call_contact','call_number'].includes(commandAction)) return res.status(400).json({error:'Unsupported phone action.'})
-      const {data:device}=await db.from('mobile_devices').select('id,enabled').eq('device_token_hash',hash(token)).maybeSingle()
+
+      // The browser holds the client pairing token, not the Android device token.
+      // Resolve the client token to its paired, enabled device before queueing.
+      const {data:pairing,error:pairingError}=await db.from('mobile_pairing_requests')
+        .select('device_id,used')
+        .eq('client_token_hash',hash(token))
+        .eq('used',true)
+        .maybeSingle()
+      if(pairingError) throw pairingError
+      if(!pairing?.device_id) return res.status(401).json({error:'Phone is not authorized.'})
+
+      const {data:device,error:deviceError}=await db.from('mobile_devices')
+        .select('id,enabled')
+        .eq('id',pairing.device_id)
+        .maybeSingle()
+      if(deviceError) throw deviceError
       if(!device?.enabled) return res.status(401).json({error:'Phone is not authorized.'})
+
       const safeValue=String(value||'').trim()
       if(!safeValue||safeValue.length>200) return res.status(400).json({error:'Invalid call target.'})
       const {data:command,error}=await db.from('mobile_commands').insert({device_id:device.id,action:commandAction,value:safeValue}).select('id').single()
