@@ -50,7 +50,7 @@ export default async function handler(req,res){
 
 
     if(action==='assistant'){
-      const token=req.headers.authorization?.replace(/^Bearer\\s+/i,'')
+      const token=req.headers.authorization?.replace(/^Bearer\s+/i,'')
       if(!token) return res.status(401).json({error:'Missing phone authentication.'})
       const {data:device}=await db.from('mobile_devices').select('id,enabled').eq('device_token_hash',hash(token)).maybeSingle()
       if(!device?.enabled) return res.status(401).json({error:'Phone is not authorized.'})
