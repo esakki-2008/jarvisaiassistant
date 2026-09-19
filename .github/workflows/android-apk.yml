@@ -44,15 +44,19 @@ jobs:
       - name: Build release APK
         run: ./gradlew assembleRelease --warning-mode all
 
-      - name: Verify release APK
+      - name: Locate release APK
+        id: locate_apk
+        shell: bash
         run: |
-          apk="$(find app/build/outputs/apk -type f -name '*.apk' -size +0c -print -quit)"
+          apk="$(find app/build/outputs -type f -name '*.apk' -size +0c -print -quit)"
           test -n "$apk"
-          echo "APK: $apk"
+          echo "apk=$apk" >> "$GITHUB_OUTPUT"
+          echo "APK found: $apk"
           ls -lh "$apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: jarvis-companion-release
-          path: android-companion/app/build/outputs/apk/release/app-release.apk
+          path: android-companion/${{ steps.locate_apk.outputs.apk }}
+          if-no-files-found: error
