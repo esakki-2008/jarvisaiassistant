@@ -105,7 +105,7 @@ class MainActivity : Activity() {
             .setTitle("JARVIS Personal Biometric Lock")
             .setSubtitle("Authenticate to unlock "+action)
             .setDescription("Your biometric data stays in Android's secure system.")
-            .setNegativeButton("CANCEL",mainExecutor,{_->})
+            .setNegativeButton("CANCEL",mainExecutor,{ _, _ -> })
             .build()
         prompt.authenticate(CancellationSignal(),mainExecutor,object:BiometricPrompt.AuthenticationCallback(){
             override fun onAuthenticationSucceeded(result:BiometricPrompt.AuthenticationResult){
