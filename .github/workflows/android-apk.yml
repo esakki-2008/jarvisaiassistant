@@ -44,6 +44,13 @@ jobs:
       - name: Build release APK
         run: ./gradlew assembleRelease --warning-mode all
 
+      - name: Sign release APK
+        shell: bash
+        run: |
+          keytool -genkeypair -v             -keystore jarvis-release.keystore             -alias jarvis             -keyalg RSA             -keysize 2048             -validity 10000             -storepass jarvis-temp-password             -keypass jarvis-temp-password             -dname "CN=JARVIS, OU=Mobile, O=Esakki Raja, L=India, C=IN"
+          apksigner sign             --ks jarvis-release.keystore             --ks-key-alias jarvis             --ks-pass pass:jarvis-temp-password             --key-pass pass:jarvis-temp-password             app/build/outputs/apk/release/app-release.apk
+          apksigner verify --verbose app/build/outputs/apk/release/app-release.apk
+
       - name: Locate release APK
         id: locate_apk
         shell: bash
