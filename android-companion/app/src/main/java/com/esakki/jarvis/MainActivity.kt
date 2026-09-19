@@ -4,8 +4,6 @@ import android.Manifest
 import android.app.AlertDialog
 import android.content.*
 import androidx.activity.ComponentActivity
-import androidx.biometric.BiometricPrompt
-import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.graphics.drawable.GradientDrawable
@@ -36,6 +34,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var lockOverlay:FrameLayout
     private var unlockedUntil=0L
     private val secureWindowMs=10*60*1000L
+    private val lockRequestCode=7401
+    private var pendingSecureAction=""
+    private var pendingSecureDone:(()->Unit)?=null
     private lateinit var chat:LinearLayout; private lateinit var input:EditText; private lateinit var pairing:LinearLayout
     private var polling=false; private var tts:TextToSpeech?=null; private var recognizer:SpeechRecognizer?=null
     private val history=ArrayList<JSONObject>()
@@ -98,25 +99,35 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun authenticateFor(action:String,done:(()->Unit)?=null){
-        val executor=ContextCompat.getMainExecutor(this)
-        val prompt=BiometricPrompt(this,executor,object:BiometricPrompt.AuthenticationCallback(){
-            override fun onAuthenticationSucceeded(result:BiometricPrompt.AuthenticationResult){
-                unlockedUntil=System.currentTimeMillis()+secureWindowMs
-                if(::lockOverlay.isInitialized)lockOverlay.visibility=View.GONE
-                status.text="SECURE • 10 MIN"
-                done?.invoke()
-            }
-            override fun onAuthenticationError(errorCode:Int,errString:CharSequence){
-                status.text="PERSONAL LOCK ACTIVE"
-            }
-        })
-        val info=BiometricPrompt.PromptInfo.Builder()
-            .setTitle("JARVIS Device Lock")
-            .setSubtitle("Unlock "+action)
-            .setDescription("Use your phone's pattern, PIN or password.")
-            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-            .build()
-        prompt.authenticate(info)
+        val keyguard=getSystemService(android.app.KeyguardManager::class.java)
+        if(!keyguard.isKeyguardSecure){
+            status.text="SET A PATTERN OR PIN FIRST"
+            addBubble("JARVIS","Please set a Pattern, PIN, or Password in Android Settings before unlocking JARVIS.",true)
+            return
+        }
+        val intent=keyguard.createConfirmDeviceCredentialIntent("JARVIS Device Lock","Unlock JARVIS to continue")
+        if(intent==null){
+            status.text="DEVICE LOCK UNAVAILABLE"
+            return
+        }
+        pendingSecureAction=action
+        pendingSecureDone=done
+        startActivityForResult(intent,lockRequestCode)
+    }
+
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?){
+        super.onActivityResult(requestCode,resultCode,data)
+        if(requestCode!=lockRequestCode)return
+        if(resultCode==RESULT_OK){
+            unlockedUntil=System.currentTimeMillis()+secureWindowMs
+            if(::lockOverlay.isInitialized)lockOverlay.visibility=View.GONE
+            status.text="SECURE • 10 MIN"
+            pendingSecureDone?.invoke()
+        }else{
+            status.text="PERSONAL LOCK ACTIVE"
+        }
+        pendingSecureAction=""
+        pendingSecureDone=null
     }
 
     override fun onResume(){super.onResume();if(::lockOverlay.isInitialized&&System.currentTimeMillis()>=unlockedUntil)lockJarvis()}
