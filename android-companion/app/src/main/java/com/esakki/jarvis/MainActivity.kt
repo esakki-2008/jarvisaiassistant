@@ -1,17 +1,17 @@
 package com.esakki.jarvis
 
 import android.Manifest
-import android.app.Activity
 import android.app.AlertDialog
 import android.content.*
+import androidx.activity.ComponentActivity
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.CancellationSignal
-import android.hardware.biometrics.BiometricPrompt
 import android.provider.ContactsContract
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -27,7 +27,7 @@ import java.net.URL
 import java.util.Locale
 import java.util.concurrent.Executors
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private val executor=Executors.newSingleThreadExecutor()
     private val prefs by lazy{getSharedPreferences("jarvis",MODE_PRIVATE)}
     private val cloudUrl="https://jarvis-ai-assistant-jet-ten.vercel.app"
@@ -98,25 +98,27 @@ class MainActivity : Activity() {
     }
 
     private fun authenticateFor(action:String,done:(()->Unit)?=null){
-        if(Build.VERSION.SDK_INT<28){addBubble("JARVIS","Secure biometric lock requires Android 9 or newer.",true);return}
-        val manager=getSystemService(android.hardware.biometrics.BiometricManager::class.java)
-        if(manager.canAuthenticate()!=android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS){addBubble("JARVIS","No supported biometric is enrolled on this device.",true);return}
-        val prompt=BiometricPrompt.Builder(this)
-            .setTitle("JARVIS Personal Biometric Lock")
-            .setSubtitle("Authenticate to unlock "+action)
-            .setDescription("Your biometric data stays in Android's secure system.")
-            .setNegativeButton("CANCEL",mainExecutor,{ _, _ -> })
-            .build()
-        prompt.authenticate(CancellationSignal(),mainExecutor,object:BiometricPrompt.AuthenticationCallback(){
+        val executor=ContextCompat.getMainExecutor(this)
+        val prompt=BiometricPrompt(this,executor,object:BiometricPrompt.AuthenticationCallback(){
             override fun onAuthenticationSucceeded(result:BiometricPrompt.AuthenticationResult){
                 unlockedUntil=System.currentTimeMillis()+secureWindowMs
                 if(::lockOverlay.isInitialized)lockOverlay.visibility=View.GONE
                 status.text="SECURE • 10 MIN"
                 done?.invoke()
             }
-            override fun onAuthenticationError(errorCode:Int,errString:CharSequence){status.text="PERSONAL LOCK ACTIVE"}
+            override fun onAuthenticationError(errorCode:Int,errString:CharSequence){
+                status.text="PERSONAL LOCK ACTIVE"
+            }
         })
+        val info=BiometricPrompt.PromptInfo.Builder()
+            .setTitle("JARVIS Personal Biometric Lock")
+            .setSubtitle("Authenticate to unlock "+action)
+            .setDescription("Use your enrolled Android biometric to continue.")
+            .setNegativeButtonText("CANCEL")
+            .build()
+        prompt.authenticate(info)
     }
+
     override fun onResume(){super.onResume();if(::lockOverlay.isInitialized&&System.currentTimeMillis()>=unlockedUntil)lockJarvis()}
 
     private fun openWhatsApp(message:String){
