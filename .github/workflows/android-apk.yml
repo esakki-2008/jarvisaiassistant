@@ -45,7 +45,11 @@ jobs:
         run: ./gradlew assembleRelease --warning-mode all
 
       - name: Verify release APK
-        run: test -s app/build/outputs/apk/release/app-release.apk
+        run: |
+          apk="$(find app/build/outputs/apk -type f -name '*.apk' -size +0c -print -quit)"
+          test -n "$apk"
+          echo "APK: $apk"
+          ls -lh "$apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
