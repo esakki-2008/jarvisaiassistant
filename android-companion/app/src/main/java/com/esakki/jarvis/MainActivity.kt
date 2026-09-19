@@ -82,8 +82,8 @@ class MainActivity : ComponentActivity() {
         lockOverlay=FrameLayout(this).apply{setBackgroundColor(bg)}
         val lockBox=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER}
         lockBox.addView(TextView(this).apply{text="J.A.R.V.I.S";gravity=Gravity.CENTER;textSize=28f;letterSpacing=.25f;setTextColor(cyan);typeface=Typeface.DEFAULT_BOLD})
-        lockBox.addView(TextView(this).apply{text="PERSONAL BIOMETRIC LOCK";gravity=Gravity.CENTER;textSize=10f;letterSpacing=.18f;setTextColor(Color.rgb(0,125,150));setPadding(0,dp(10),0,dp(18))})
-        lockBox.addView(TextView(this).apply{text="USE YOUR ANDROID BIOMETRIC";gravity=Gravity.CENTER;textSize=9f;setTextColor(Color.rgb(90,130,140));setPadding(dp(10),0,dp(10),dp(18))})
+        lockBox.addView(TextView(this).apply{text="PERSONAL DEVICE LOCK";gravity=Gravity.CENTER;textSize=10f;letterSpacing=.18f;setTextColor(Color.rgb(0,125,150));setPadding(0,dp(10),0,dp(18))})
+        lockBox.addView(TextView(this).apply{text="USE YOUR PHONE PATTERN, PIN OR PASSWORD";gravity=Gravity.CENTER;textSize=9f;setTextColor(Color.rgb(90,130,140));setPadding(dp(10),0,dp(10),dp(18))})
         lockBox.addView(TextView(this).apply{text="UNLOCK JARVIS";gravity=Gravity.CENTER;setTextColor(Color.BLACK);background=buttonBg();setPadding(dp(30),0,dp(30),0);setOnClickListener{authenticateFor("JARVIS")}},LinearLayout.LayoutParams(-2,dp(50)))
         lockOverlay.addView(lockBox,FrameLayout.LayoutParams(-1,-1))
         root.addView(lockOverlay,FrameLayout.LayoutParams(-1,-1))
@@ -111,10 +111,10 @@ class MainActivity : ComponentActivity() {
             }
         })
         val info=BiometricPrompt.PromptInfo.Builder()
-            .setTitle("JARVIS Personal Biometric Lock")
-            .setSubtitle("Authenticate to unlock "+action)
-            .setDescription("Use your enrolled Android biometric to continue.")
-            .setNegativeButtonText("CANCEL")
+            .setTitle("JARVIS Device Lock")
+            .setSubtitle("Unlock "+action)
+            .setDescription("Use your phone's pattern, PIN or password.")
+            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL)
             .build()
         prompt.authenticate(info)
     }
