@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.CancellationSignal
+import android.hardware.biometrics.BiometricPrompt
 import android.provider.ContactsContract
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -91,6 +92,11 @@ class MainActivity : Activity() {
 
     private fun sendText(){val text=input.text.toString().trim();if(text.isEmpty())return;input.setText("");addBubble("YOU",text,false);askJarvis(text)}
     private fun lockJarvis(){unlockedUntil=0L;if(::lockOverlay.isInitialized){lockOverlay.visibility=View.VISIBLE;status.text="PERSONAL LOCK ACTIVE";reactor.mode=ReactorView.Mode.ERROR}}
+    private fun ensureSecure(action:String,done:()->Unit){
+        if(System.currentTimeMillis()<unlockedUntil){done();return}
+        authenticateFor(action,done)
+    }
+
     private fun authenticateFor(action:String,done:(()->Unit)?=null){
         if(Build.VERSION.SDK_INT<28){addBubble("JARVIS","Secure biometric lock requires Android 9 or newer.",true);return}
         val manager=getSystemService(android.hardware.biometrics.BiometricManager::class.java)
