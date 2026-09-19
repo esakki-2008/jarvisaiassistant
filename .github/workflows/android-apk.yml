@@ -40,7 +40,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK="app/build/outputs/apk/release/app-release.apk"
+          APK="$(find app/build/outputs -type f -name "*.apk" -size +0c -print -quit)"
+          test -n "$APK"
+          echo "APK to sign: $APK"
           SDK_APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print -quit)"
           test -x "$SDK_APKSIGNER"
           echo "Using apksigner: $SDK_APKSIGNER"
